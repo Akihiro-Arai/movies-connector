@@ -127,9 +127,8 @@ struct JoinView: View {
                     collected.append(url)
                 }
             }
-            let videos = collected.filter(Self.isLikelyVideoURL)
             await MainActor.run {
-                viewModel.addURLs(videos)
+                viewModel.addDroppedURLs(collected)
             }
         }
         return true
@@ -149,16 +148,6 @@ struct JoinView: View {
                 }
             }
         }
-    }
-
-    private static func isLikelyVideoURL(_ url: URL) -> Bool {
-        if let type = UTType(filenameExtension: url.pathExtension),
-           type.conforms(to: .movie) || type.conforms(to: .audiovisualContent)
-        {
-            return true
-        }
-        let ext = url.pathExtension.lowercased()
-        return ["mov", "mp4", "m4v", "avi", "mpeg", "mpg", "mkv"].contains(ext)
     }
 }
 

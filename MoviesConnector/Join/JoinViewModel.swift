@@ -49,6 +49,17 @@ final class JoinViewModel: ObservableObject {
         addURLs(urls)
     }
 
+    /// Filters Finder drops through FileAccess policy, then enqueues accepted movies.
+    func addDroppedURLs(_ urls: [URL]) {
+        let result = DroppedMovieURLFilter.filter(urls)
+        if !result.rejected.isEmpty {
+            statusMessage = Self.dropRejectionMessage(result.rejected)
+        } else if !result.accepted.isEmpty {
+            statusMessage = nil
+        }
+        addURLs(result.accepted)
+    }
+
     func addURLs(_ urls: [URL]) {
         guard !urls.isEmpty else { return }
         var appended: [JoinQueueItem] = []
@@ -182,5 +193,21 @@ final class JoinViewModel: ObservableObject {
             return "\(base)-joined.mov"
         }
         return "joined.mov"
+    }
+
+    private static func dropRejectionMessage(
+        _ rejected: [DroppedMovieURLFilter.Rejection]
+    ) -> String {
+        let parts = rejected.map { rejection in
+            let name = rejection.url.isFileURL
+                ? rejection.url.lastPathComponent
+                : rejection.url.absoluteString
+            let reason = rejection.reason.errorDescription ?? "Rejected"
+            return "\(name): \(reason)"
+        }
+        if parts.count == 1 {
+            return "Skipped drop — \(parts[0])"
+        }
+        return "Skipped \(parts.count) dropped item(s) — " + parts.joined(separator: "; ")
     }
 }

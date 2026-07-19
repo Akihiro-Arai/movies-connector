@@ -89,6 +89,7 @@ final class JoinViewModelTests: XCTestCase {
         viewModel.addURLs([a])
         XCTAssertFalse(viewModel.canJoin, "Inspecting + no output")
 
+        await inspector.waitUntilInspectEntered(count: 1)
         gate.resumeAll()
         await waitUntil(viewModel) { $0.items.first?.compatibility == .compatible }
         XCTAssertFalse(viewModel.canJoin, "Compatible but no output")
@@ -98,6 +99,7 @@ final class JoinViewModelTests: XCTestCase {
 
         viewModel.addURLs([b])
         XCTAssertFalse(viewModel.canJoin, "New item present while not fully compatible")
+        await inspector.waitUntilInspectEntered(count: 2)
         gate.resumeAll()
         await waitUntil(viewModel) { self.itemsReady($0) }
         XCTAssertFalse(viewModel.canJoin, "Incompatible present")
@@ -117,6 +119,12 @@ final class JoinViewModelTests: XCTestCase {
             XCTFail("Expected queue item")
             return
         }
+
+        // Wait until inspect has entered (and is blocked on the gate) before deleting,
+        // so this is not scheduling-dependent on the unstructured Task starting.
+        await inspector.waitUntilInspectEntered(count: 1)
+        XCTAssertEqual(inspector.inspectCallCount, 1)
+
         viewModel.removeItem(id: id)
         XCTAssertTrue(viewModel.items.isEmpty)
 
@@ -126,6 +134,70 @@ final class JoinViewModelTests: XCTestCase {
 
         XCTAssertTrue(viewModel.items.isEmpty)
         XCTAssertEqual(inspector.inspectCallCount, 1)
+    }
+
+    func testDroppedURLsUseFileAccessFilterAndSurfaceRejections() {
+        let movie = URL(fileURLWithPath: "/Movies/ok.mov")
+        let text = URL(fileURLWithPath: "/Movies/notes.txt")
+        let mkv = URL(fileURLWithPath: "/Movies/clip.mkv")
+        DroppedMovieURLFilter.resourceInfoForTesting = { url in
+            if url == movie {
+                return DroppedMovieURLFilter.ResourceInfo(
+                    isRegularFile: true,
+                    typeIdentifier: "com.apple.quicktime-movie"
+                )
+            }
+            if url == text {
+                return DroppedMovieURLFilter.ResourceInfo(
+                    isRegularFile: true,
+                    typeIdentifier: "public.plain-text"
+                )
+            }
+            if url == mkv {
+                // Extension fallback: mkv is outside MovieContentTypes.supportedExtensions.
+                return DroppedMovieURLFilter.ResourceInfo(
+                    isRegularFile: true,
+                    typeIdentifier: nil
+                )
+            }
+            return nil
+        }
+        defer { DroppedMovieURLFilter.resetForTesting() }
+
+        let inspector = MockAssetInspector(results: [
+            movie: .success(Self.inspection(duration: 1, width: 320)),
+        ])
+        let viewModel = makeViewModel(inspector: inspector)
+
+        viewModel.addDroppedURLs([movie, text, mkv, movie])
+
+        XCTAssertEqual(viewModel.orderedInputURLs, [movie, movie])
+        XCTAssertNotNil(viewModel.statusMessage)
+        XCTAssertTrue(
+            viewModel.statusMessage?.contains("notes.txt") == true,
+            viewModel.statusMessage ?? ""
+        )
+        XCTAssertTrue(
+            viewModel.statusMessage?.contains("clip.mkv") == true,
+            viewModel.statusMessage ?? ""
+        )
+    }
+
+    func testAccessDenialSurfacesOnRowAsIncompatible() async {
+        let url = URL(fileURLWithPath: "/tmp/denied.mov")
+        let inspector = MockAssetInspector(results: [
+            url: .failure(UserSelectedURLAccessError.securityScopedAccessDenied(url)),
+        ])
+        let viewModel = makeViewModel(inspector: inspector)
+
+        viewModel.addURLs([url])
+        await waitUntil(viewModel) { self.itemsReady($0) }
+
+        guard case .incompatible(let reason) = viewModel.items.first?.compatibility else {
+            XCTFail("Expected incompatible row after access denial")
+            return
+        }
+        XCTAssertTrue(reason.contains("denied.mov") || reason.contains("Reselect"), reason)
     }
 
     func testJoinPassesOrderedURLsToExporter() async {
@@ -258,16 +330,37 @@ private final class MockAssetInspector: AssetInspecting, @unchecked Sendable {
     private let gate: InspectionGate?
     private let lock = NSLock()
     private(set) var inspectCallCount = 0
+    private var entryWaiters: [(count: Int, continuation: CheckedContinuation<Void, Never>)] = []
 
     init(results: [URL: Result<JoinInspectionResult, Error>], gate: InspectionGate? = nil) {
         self.results = results
         self.gate = gate
     }
 
+    func waitUntilInspectEntered(count: Int = 1) async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            lock.lock()
+            if inspectCallCount >= count {
+                lock.unlock()
+                continuation.resume()
+            } else {
+                entryWaiters.append((count, continuation))
+                lock.unlock()
+            }
+        }
+    }
+
     func inspect(url: URL) async throws -> JoinInspectionResult {
         lock.lock()
         inspectCallCount += 1
+        let currentCount = inspectCallCount
+        let ready = entryWaiters.filter { currentCount >= $0.count }
+        entryWaiters.removeAll { currentCount >= $0.count }
         lock.unlock()
+        for waiter in ready {
+            waiter.continuation.resume()
+        }
+
         if let gate {
             await gate.waitIfNeeded()
         }
