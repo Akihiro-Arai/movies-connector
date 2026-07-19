@@ -55,4 +55,31 @@ final class SecurityScopedAccessTests: XCTestCase {
 
         XCTAssertEqual(stopCount, 0)
     }
+
+    func testAsyncOverloadBalancesStopWhenBodyThrows() async {
+        let url = URL(fileURLWithPath: "/tmp/movies-connector-scope-throw")
+        var startCount = 0
+        var stopCount = 0
+
+        SecurityScopedAccess.startAccessingForTesting = { _ in
+            startCount += 1
+            return true
+        }
+        SecurityScopedAccess.stopAccessingForTesting = { _ in stopCount += 1 }
+
+        do {
+            try await SecurityScopedAccess.withAccess(to: url) {
+                try await Task.sleep(nanoseconds: 5_000_000)
+                throw CancellationError()
+            }
+            XCTFail("Expected throw")
+        } catch is CancellationError {
+            // expected
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+
+        XCTAssertEqual(startCount, 1)
+        XCTAssertEqual(stopCount, 1)
+    }
 }

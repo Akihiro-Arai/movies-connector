@@ -20,7 +20,7 @@ enum SecurityScopedAccess {
 
     @discardableResult
     static func withAccess<T>(to urls: [URL], perform: () throws -> T) rethrows -> T {
-        let started = urls.map { ($0, startAccessing($0)) }
+        let started = beginAccess(to: urls)
         defer { stopAccessing(started) }
         return try perform()
     }
@@ -34,9 +34,29 @@ enum SecurityScopedAccess {
     /// Keeps security-scoped access alive across the full async job (including suspension points).
     @discardableResult
     static func withAccess<T>(to urls: [URL], perform: () async throws -> T) async rethrows -> T {
-        let started = urls.map { ($0, startAccessing($0)) }
+        let started = beginAccess(to: urls)
         defer { stopAccessing(started) }
         return try await perform()
+    }
+
+    /// Async access with a per-URL start-result hook (e.g. to surface access denial).
+    /// Access is always balanced: every successful start is stopped on success, error, or cancellation.
+    @discardableResult
+    static func withAccess<T>(
+        to urls: [URL],
+        onStartResult: (URL, Bool) throws -> Void,
+        perform: () async throws -> T
+    ) async throws -> T {
+        let started = beginAccess(to: urls)
+        defer { stopAccessing(started) }
+        for (url, didStart) in started {
+            try onStartResult(url, didStart)
+        }
+        return try await perform()
+    }
+
+    private static func beginAccess(to urls: [URL]) -> [(URL, Bool)] {
+        urls.map { ($0, startAccessing($0)) }
     }
 
     private static func startAccessing(_ url: URL) -> Bool {
