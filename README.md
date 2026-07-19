@@ -36,3 +36,11 @@ Passthrough join validation and `CompatibilitySignature` rules:
 
 - [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)
 - [docs/SPIKE.md](docs/SPIKE.md)
+
+## Acceptance (#7)
+
+Release-readiness checks (correctness, sandbox, failure cleanup, speed KPI):
+
+- [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)
+- Harness: `Scripts/run_acceptance_benchmark.sh`
+- Fixtures: `Scripts/generate_acceptance_fixtures.swift`
