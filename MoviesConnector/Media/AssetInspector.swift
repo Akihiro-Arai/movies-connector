@@ -73,8 +73,9 @@ enum AssetInspector {
             frameDuration = nil
         }
 
-        let timeRange = try await videoTrack.load(.timeRange)
-        let videoTimescale = timeRange.duration.timescale == 0 ? nil : timeRange.start.timescale
+        // Use the track's media timescale — not timeRange.start.timescale (often 1 when start is zero).
+        let naturalTimeScale = try await videoTrack.load(.naturalTimeScale)
+        let videoTimescale: Int32? = naturalTimeScale == 0 ? nil : naturalTimeScale
 
         var audioCodec: String?
         var audioSampleRate: Double?

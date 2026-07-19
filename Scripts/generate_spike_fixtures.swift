@@ -3,8 +3,9 @@ import AVFoundation
 import AppKit
 import Foundation
 
-/// Generates tiny H.264 .mov fixtures with AVFoundation (no FFmpeg) for the passthrough spike.
-/// Usage: swift Scripts/generate_spike_fixtures.swift [outputDirectory]
+/// Generates H.264 .mov fixtures with AVFoundation (no FFmpeg) for the passthrough spike.
+/// Usage:
+///   swift Scripts/generate_spike_fixtures.swift [outputDirectory] [--bench]
 
 struct FixtureSpec {
     var name: String
@@ -13,13 +14,18 @@ struct FixtureSpec {
     var frameCount: Int
     var fps: Double
     var color: NSColor
+    var bitRate: Int
+    /// When true, paint per-frame pseudo-noise so H.264 cannot collapse to a few KB.
+    var noisy: Bool = false
 }
 
 enum FixtureGenerator {
     static func run() async {
+        let positional = Array(CommandLine.arguments.dropFirst()).filter { !$0.hasPrefix("-") }
+        let includeBench = CommandLine.arguments.contains("--bench")
         let outputRoot: URL
-        if CommandLine.arguments.count > 1 {
-            outputRoot = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
+        if let path = positional.first {
+            outputRoot = URL(fileURLWithPath: path, isDirectory: true)
         } else {
             outputRoot = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
                 .appendingPathComponent("Fixtures", isDirectory: true)
@@ -27,21 +33,50 @@ enum FixtureGenerator {
 
         try? FileManager.default.createDirectory(at: outputRoot, withIntermediateDirectories: true)
 
-        let specs: [FixtureSpec] = [
-            .init(name: "compat_a", width: 320, height: 240, frameCount: 15, fps: 30, color: .systemBlue),
-            .init(name: "compat_b", width: 320, height: 240, frameCount: 15, fps: 30, color: .systemGreen),
-            .init(name: "incompat_size", width: 640, height: 360, frameCount: 15, fps: 30, color: .systemOrange),
-            .init(name: "incompat_fps", width: 320, height: 240, frameCount: 12, fps: 24, color: .systemPurple),
+        var specs: [FixtureSpec] = [
+            .init(name: "compat_a", width: 320, height: 240, frameCount: 15, fps: 30, color: .systemBlue, bitRate: 500_000),
+            .init(name: "compat_b", width: 320, height: 240, frameCount: 15, fps: 30, color: .systemGreen, bitRate: 500_000),
+            .init(name: "incompat_size", width: 640, height: 360, frameCount: 15, fps: 30, color: .systemOrange, bitRate: 500_000),
+            .init(name: "incompat_fps", width: 320, height: 240, frameCount: 12, fps: 24, color: .systemPurple, bitRate: 500_000),
         ]
+        if includeBench {
+            // Noisy 720p clips so encoded size is large enough for a non-zero SSD copy baseline.
+            specs.append(contentsOf: [
+                .init(
+                    name: "bench_a",
+                    width: 1280,
+                    height: 720,
+                    frameCount: 450,
+                    fps: 30,
+                    color: .systemTeal,
+                    bitRate: 16_000_000,
+                    noisy: true
+                ),
+                .init(
+                    name: "bench_b",
+                    width: 1280,
+                    height: 720,
+                    frameCount: 450,
+                    fps: 30,
+                    color: .systemPink,
+                    bitRate: 16_000_000,
+                    noisy: true
+                ),
+            ])
+        }
 
         do {
             for spec in specs {
                 let url = outputRoot.appendingPathComponent("\(spec.name).mov")
                 try await writeMovie(spec: spec, to: url)
-                print("Wrote \(url.path)")
+                let bytes = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.int64Value ?? 0
+                print("Wrote \(url.path) (\(bytes) bytes)")
             }
             print("Done. Compatible pair: compat_a.mov + compat_b.mov")
             print("Incompatible pairs: compat_a.mov + incompat_size.mov, compat_a.mov + incompat_fps.mov")
+            if includeBench {
+                print("Bench pair: bench_a.mov + bench_b.mov")
+            }
         } catch {
             fputs("Fixture generation failed: \(error)\n", stderr)
             exit(1)
@@ -59,7 +94,7 @@ enum FixtureGenerator {
             AVVideoWidthKey: spec.width,
             AVVideoHeightKey: spec.height,
             AVVideoCompressionPropertiesKey: [
-                AVVideoAverageBitRateKey: 500_000,
+                AVVideoAverageBitRateKey: spec.bitRate,
             ],
         ]
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
@@ -110,7 +145,8 @@ enum FixtureGenerator {
                             width: spec.width,
                             height: spec.height,
                             color: spec.color,
-                            label: "\(spec.name)#\(frameIndex)"
+                            frameIndex: frameIndex,
+                            noisy: spec.noisy
                         )
                         let time = CMTimeMultiply(frameDuration, multiplier: Int32(frameIndex))
                         if !adaptor.append(buffer, withPresentationTime: time) {
@@ -128,7 +164,13 @@ enum FixtureGenerator {
         }
     }
 
-    static func makePixelBuffer(width: Int, height: Int, color: NSColor, label: String) throws -> CVPixelBuffer {
+    static func makePixelBuffer(
+        width: Int,
+        height: Int,
+        color: NSColor,
+        frameIndex: Int,
+        noisy: Bool
+    ) throws -> CVPixelBuffer {
         var buffer: CVPixelBuffer?
         let status = CVPixelBufferCreate(
             kCFAllocatorDefault,
@@ -148,26 +190,49 @@ enum FixtureGenerator {
         CVPixelBufferLockBaseAddress(pixelBuffer, [])
         defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
 
-        guard let context = CGContext(
-            data: CVPixelBufferGetBaseAddress(pixelBuffer),
-            width: width,
-            height: height,
-            bitsPerComponent: 8,
-            bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer),
-            space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
-        ) else {
+        guard let base = CVPixelBufferGetBaseAddress(pixelBuffer) else {
             throw NSError(domain: "FixtureGenerator", code: 5)
         }
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(pixelBuffer)
 
-        context.setFillColor(color.cgColor)
-        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        if noisy {
+            // Deterministic per-frame noise (xorshift) so encoders cannot collapse the stream.
+            var state = UInt64(frameIndex &+ 1) &* 0x9E37_79B9_7F4A_7C15
+            let rowBytes = width * 4
+            for y in 0..<height {
+                let row = base.advanced(by: y * bytesPerRow).assumingMemoryBound(to: UInt8.self)
+                for x in stride(from: 0, to: rowBytes, by: 4) {
+                    state ^= state << 13
+                    state ^= state >> 7
+                    state ^= state << 17
+                    let value = UInt8(truncatingIfNeeded: state)
+                    row[x] = value
+                    row[x + 1] = UInt8(truncatingIfNeeded: state >> 8)
+                    row[x + 2] = UInt8(truncatingIfNeeded: state >> 16)
+                    row[x + 3] = 255
+                }
+            }
+        } else {
+            guard let context = CGContext(
+                data: base,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: bytesPerRow,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue
+            ) else {
+                throw NSError(domain: "FixtureGenerator", code: 5)
+            }
 
-        // Simple brightness stripe so frames differ without AppKit text drawing.
-        context.setFillColor(NSColor.white.withAlphaComponent(0.35).cgColor)
-        let stripeHeight = max(4, height / 8)
-        context.fill(CGRect(x: 0, y: height / 2, width: width, height: stripeHeight))
-        _ = label
+            context.setFillColor(color.cgColor)
+            context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+
+            context.setFillColor(NSColor.white.withAlphaComponent(0.35).cgColor)
+            let stripeHeight = max(4, height / 8)
+            let stripeY = (height / 8) * (frameIndex % 8)
+            context.fill(CGRect(x: 0, y: stripeY, width: width, height: stripeHeight))
+        }
 
         return pixelBuffer
     }

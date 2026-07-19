@@ -21,11 +21,18 @@ enum PassthroughSpike {
             let signatures = try await loadSignatures(inputURLs)
             print("Signatures:")
             for (url, signature) in zip(inputURLs, signatures) {
-                print("  \(url.lastPathComponent): codec=\(signature.videoCodec ?? "nil") size=\(signature.videoDisplayWidth)x\(signature.videoDisplayHeight) fpsDur=\(signature.frameDurationDescription) audioTracks=\(signature.audioTrackCount)")
+                print(
+                    "  \(url.lastPathComponent): codec=\(signature.videoCodec ?? "nil") size=\(signature.videoDisplayWidth)x\(signature.videoDisplayHeight) fpsDur=\(signature.frameDurationDescription) timescale=\(signature.videoTimescale.map(String.init) ?? "nil") audioTracks=\(signature.audioTrackCount)"
+                )
             }
 
             let reference = signatures[0]
             var reasons: [String] = []
+            if reference.audioTrackCount > 1 {
+                reasons.append(
+                    "file[0]: unsupported topology — at most 1 audio track (found \(reference.audioTrackCount))"
+                )
+            }
             for (index, signature) in signatures.dropFirst().enumerated() {
                 reasons.append(contentsOf: mismatchReasons(reference: reference, candidate: signature, index: index + 1))
             }
@@ -35,13 +42,23 @@ enum PassthroughSpike {
                 exit(1)
             }
 
-            let copyBaseline = try measureCopyBaseline(of: inputURLs[0], beside: outputURL)
-            print(String(format: "Copy baseline (first input → same volume): %.3fs", copyBaseline))
+            let totalSourceBytes = try inputURLs.reduce(Int64(0)) { partial, url in
+                let values = try url.resourceValues(forKeys: [.fileSizeKey])
+                return partial + Int64(values.fileSize ?? 0)
+            }
+            let copyBaseline = try measureCopyBaseline(of: inputURLs, beside: outputURL)
+            print("Total source bytes: \(totalSourceBytes)")
+            print(String(format: "Copy baseline (all inputs → same volume, concatenated payload): %.6fs", copyBaseline))
 
             let started = DispatchTime.now().uptimeNanoseconds
             try await exportPassthrough(inputs: inputURLs, output: outputURL)
             let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000_000
-            print(String(format: "Passthrough join: %.3fs for %d inputs → %@", elapsed, inputURLs.count, outputURL.path))
+            print(String(format: "Passthrough join: %.6fs for %d inputs → %@", elapsed, inputURLs.count, outputURL.path))
+            if copyBaseline > 0 {
+                print(String(format: "Join / copy ratio: %.3fx", elapsed / copyBaseline))
+            } else {
+                print("Join / copy ratio: N/A (copy baseline below timer resolution)")
+            }
 
             let outputAsset = AVURLAsset(url: outputURL)
             let outputDuration = try await outputAsset.load(.duration)
@@ -93,14 +110,14 @@ enum PassthroughSpike {
             let display = naturalSize.applying(transform)
             let formats = try await video.load(.formatDescriptions)
             let minFrameDuration = try await video.load(.minFrameDuration)
-            let timeRange = try await video.load(.timeRange)
+            let naturalTimeScale = try await video.load(.naturalTimeScale)
             result.append(
                 Signature(
                     videoCodec: fourCC(formats.first),
                     videoDisplayWidth: Int(abs(display.width).rounded()),
                     videoDisplayHeight: Int(abs(display.height).rounded()),
                     frameDuration: minFrameDuration,
-                    videoTimescale: timeRange.start.timescale,
+                    videoTimescale: naturalTimeScale == 0 ? nil : naturalTimeScale,
                     audioTrackCount: audioTracks.count
                 )
             )
@@ -110,6 +127,11 @@ enum PassthroughSpike {
 
     static func mismatchReasons(reference: Signature, candidate: Signature, index: Int) -> [String] {
         var reasons: [String] = []
+        if candidate.audioTrackCount > 1 {
+            reasons.append(
+                "file[\(index)]: unsupported topology — at most 1 audio track (found \(candidate.audioTrackCount))"
+            )
+        }
         if reference.videoCodec != candidate.videoCodec {
             reasons.append("file[\(index)]: video codec \(reference.videoCodec ?? "nil") vs \(candidate.videoCodec ?? "nil")")
         }
@@ -134,10 +156,6 @@ enum PassthroughSpike {
     }
 
     static func exportPassthrough(inputs: [URL], output: URL) async throws {
-        if FileManager.default.fileExists(atPath: output.path) {
-            try FileManager.default.removeItem(at: output)
-        }
-
         let composition = AVMutableComposition()
         guard let videoComp = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else {
             throw NSError(domain: "Spike", code: 2)
@@ -151,7 +169,15 @@ enum PassthroughSpike {
             let range = CMTimeRange(start: .zero, duration: duration)
             let video = try await asset.loadTracks(withMediaType: .video)[0]
             try videoComp.insertTimeRange(range, of: video, at: cursor)
-            if let audio = try await asset.loadTracks(withMediaType: .audio).first {
+            let audioTracks = try await asset.loadTracks(withMediaType: .audio)
+            if audioTracks.count > 1 {
+                throw NSError(
+                    domain: "Spike",
+                    code: 4,
+                    userInfo: [NSLocalizedDescriptionKey: "Unsupported: more than one audio track in \(url.lastPathComponent)"]
+                )
+            }
+            if let audio = audioTracks.first {
                 if audioComp == nil {
                     audioComp = composition.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
                 }
@@ -163,19 +189,40 @@ enum PassthroughSpike {
         guard let session = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough) else {
             throw NSError(domain: "Spike", code: 3, userInfo: [NSLocalizedDescriptionKey: "No export session"])
         }
-        try await session.export(to: output, as: .mov)
+
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("movies-connector-spike-\(UUID().uuidString).mov")
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+        try await session.export(to: tempURL, as: .mov)
+
+        if FileManager.default.fileExists(atPath: output.path) {
+            _ = try FileManager.default.replaceItemAt(output, withItemAt: tempURL)
+        } else {
+            try FileManager.default.createDirectory(
+                at: output.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try FileManager.default.moveItem(at: tempURL, to: output)
+        }
     }
 
-    static func measureCopyBaseline(of source: URL, beside output: URL) throws -> TimeInterval {
-        let dest = output.deletingLastPathComponent().appendingPathComponent("copy-baseline-\(source.lastPathComponent)")
-        if FileManager.default.fileExists(atPath: dest.path) {
-            try FileManager.default.removeItem(at: dest)
-        }
+    /// Copies a payload equal to the total source bytes onto the destination volume.
+    static func measureCopyBaseline(of sources: [URL], beside output: URL) throws -> TimeInterval {
+        let dest = output.deletingLastPathComponent()
+            .appendingPathComponent("copy-baseline-\(UUID().uuidString).bin")
+        defer { try? FileManager.default.removeItem(at: dest) }
+
+        FileManager.default.createFile(atPath: dest.path, contents: nil)
+        let handle = try FileHandle(forWritingTo: dest)
+        defer { try? handle.close() }
+
         let started = DispatchTime.now().uptimeNanoseconds
-        try FileManager.default.copyItem(at: source, to: dest)
-        let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000_000
-        try? FileManager.default.removeItem(at: dest)
-        return elapsed
+        for source in sources {
+            let data = try Data(contentsOf: source, options: [.mappedIfSafe])
+            try handle.write(contentsOf: data)
+        }
+        try handle.synchronize()
+        return Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000_000
     }
 
     static func loadDurations(_ urls: [URL]) async throws -> [CMTime] {

@@ -43,6 +43,9 @@ enum JoinExporter {
 
     /// Joins `inputURLs` in order to `outputURL` using passthrough export.
     /// Caller is responsible for security-scoped access around the URLs.
+    ///
+    /// Writes to a temporary file first, then replaces/moves into `outputURL` only on success,
+    /// so an existing destination is never deleted before a successful export.
     static func join(
         inputURLs: [URL],
         outputURL: URL,
@@ -52,10 +55,6 @@ enum JoinExporter {
 
         if preflight {
             try await preflightCompatibility(inputURLs: inputURLs)
-        }
-
-        if FileManager.default.fileExists(atPath: outputURL.path) {
-            try FileManager.default.removeItem(at: outputURL)
         }
 
         let composition = AVMutableComposition()
@@ -108,14 +107,21 @@ enum JoinExporter {
 
         exportSession.shouldOptimizeForNetworkUse = false
 
+        let tempURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("movies-connector-\(UUID().uuidString).mov")
+        defer { try? FileManager.default.removeItem(at: tempURL) }
+
         let started = DispatchTime.now().uptimeNanoseconds
         do {
-            try await exportSession.export(to: outputURL, as: .mov)
+            try await exportSession.export(to: tempURL, as: .mov)
         } catch is CancellationError {
             throw JoinExporterError.cancelled
         } catch {
             throw JoinExporterError.exportFailed(error.localizedDescription)
         }
+
+        try installExport(from: tempURL, to: outputURL)
+
         let elapsed = DispatchTime.now().uptimeNanoseconds - started
         return Result(outputURL: outputURL, elapsedNanoseconds: elapsed, inputCount: inputURLs.count)
     }
@@ -128,10 +134,10 @@ enum JoinExporter {
 
         guard let reference = signatures.first else { return }
 
-        if reference.hasUnsupportedTracks || reference.videoTrackCount != 1 {
+        if reference.hasUnsupportedTracks || reference.videoTrackCount != 1 || reference.audioTrackCount > 1 {
             throw JoinExporterError.incompatible([
                 CompatibilityMismatch.unsupportedTopology(
-                    "first asset must have exactly 1 video track and no unsupported tracks"
+                    "first asset must have exactly 1 video track, at most 1 audio track, and no unsupported tracks"
                 ).description,
             ])
         }
@@ -146,6 +152,18 @@ enum JoinExporter {
 
         if !reasons.isEmpty {
             throw JoinExporterError.incompatible(reasons)
+        }
+    }
+
+    /// Atomically replace an existing destination, or move into place when absent.
+    private static func installExport(from tempURL: URL, to outputURL: URL) throws {
+        let fm = FileManager.default
+        if fm.fileExists(atPath: outputURL.path) {
+            _ = try fm.replaceItemAt(outputURL, withItemAt: tempURL)
+        } else {
+            let parent = outputURL.deletingLastPathComponent()
+            try fm.createDirectory(at: parent, withIntermediateDirectories: true)
+            try fm.moveItem(at: tempURL, to: outputURL)
         }
     }
 

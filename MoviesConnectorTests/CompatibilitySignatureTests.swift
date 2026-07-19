@@ -29,8 +29,67 @@ final class CompatibilitySignatureTests: XCTestCase {
         XCTAssertTrue(mismatches.contains(.audioTrackCount(1, 0)))
     }
 
+    func testMultiAudioOnReferenceIsUnsupportedTopology() {
+        var reference = sampleSignature()
+        var candidate = sampleSignature()
+        reference.audioTrackCount = 2
+        candidate.audioTrackCount = 2
+
+        let mismatches = CompatibilityComparer.mismatches(between: reference, and: candidate)
+        XCTAssertTrue(
+            mismatches.contains(
+                .unsupportedTopology("reference must have at most 1 audio track (found 2)")
+            )
+        )
+        XCTAssertTrue(
+            mismatches.contains(
+                .unsupportedTopology("candidate must have at most 1 audio track (found 2)")
+            )
+        )
+        XCTAssertFalse(CompatibilityComparer.areCompatible(reference, candidate))
+    }
+
+    func testMultiAudioOnCandidateOnlyIsUnsupportedTopology() {
+        var reference = sampleSignature()
+        var candidate = sampleSignature()
+        reference.audioTrackCount = 1
+        candidate.audioTrackCount = 3
+
+        let mismatches = CompatibilityComparer.mismatches(between: reference, and: candidate)
+        XCTAssertTrue(
+            mismatches.contains(
+                .unsupportedTopology("candidate must have at most 1 audio track (found 3)")
+            )
+        )
+        XCTAssertTrue(mismatches.contains(.audioTrackCount(1, 3)))
+        XCTAssertFalse(
+            mismatches.contains(where: {
+                if case .unsupportedTopology(let detail) = $0 {
+                    return detail.contains("reference must have at most 1 audio track")
+                }
+                return false
+            })
+        )
+    }
+
+    func testSingleInputStyleSignatureRejectsMultiAudioAgainstItself() {
+        var signature = sampleSignature()
+        signature.audioTrackCount = 2
+        let mismatches = CompatibilityComparer.mismatches(between: signature, and: signature)
+        XCTAssertTrue(
+            mismatches.contains(
+                .unsupportedTopology("reference must have at most 1 audio track (found 2)")
+            )
+        )
+        XCTAssertTrue(
+            mismatches.contains(
+                .unsupportedTopology("candidate must have at most 1 audio track (found 2)")
+            )
+        )
+    }
+
     func testDisplaySizeMismatchIsRejected() {
-        var a = sampleSignature()
+        let a = sampleSignature()
         var b = sampleSignature()
         b.videoDisplayWidth = 1280
         b.videoDisplayHeight = 720

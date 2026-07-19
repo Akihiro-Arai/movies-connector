@@ -9,7 +9,7 @@ Implementation types: `MoviesConnector/Media/CompatibilitySignature.swift`, `Ass
 | Rule | v1 expectation |
 | --- | --- |
 | Video tracks | Exactly **1** per file |
-| Audio tracks | **0 or 1**, and the count must match across all inputs |
+| Audio tracks | **0 or 1** only (`> 1` → unsupported topology); count must match across all inputs |
 | Other tracks | **Unsupported** (timecode, subtitle/forced text, closed caption, metadata media, etc.) → reject |
 | Chapters / attachments | Not part of the signature; ignore for compare, do not require |
 
@@ -31,7 +31,7 @@ Implementation types: `MoviesConnector/Media/CompatibilitySignature.swift`, `Ass
 | `videoDisplayWidth` / `videoDisplayHeight` | `naturalSize` × `preferredTransform` | Absolute values, rounded to `Int` (display pixels) |
 | `videoPreferredTransform` | `AVAssetTrack.preferredTransform` | Components `a,b,c,d,tx,ty` quantized to **6 decimal places** |
 | `videoFrameDuration` | Prefer `minFrameDuration`; else `1 / nominalFrameRate` | Reduced `value/timescale` rational |
-| `videoTimescale` | Primary video track time range timescale | `Int32`; must match exactly |
+| `videoTimescale` | Primary video track `AVAssetTrack.naturalTimeScale` | `Int32`; must match exactly (not `timeRange.start.timescale`) |
 
 ### Audio (when `audioTrackCount == 1`)
 
@@ -48,8 +48,8 @@ When `audioTrackCount == 0`, audio fields are `nil` / unused and must match the 
 
 1. Build a signature for each URL via `AssetInspector.makeSignature`.
 2. Use the first file as the reference.
-3. Reject immediately if the reference has unsupported tracks or `videoTrackCount != 1`.
-4. For each subsequent file, collect every `CompatibilityMismatch` from `CompatibilityComparer.mismatches`.
+3. Reject immediately if the reference has unsupported tracks, `videoTrackCount != 1`, or `audioTrackCount > 1`.
+4. For each subsequent file, collect every `CompatibilityMismatch` from `CompatibilityComparer.mismatches` (including multi-audio on any candidate).
 5. If the mismatch list is non-empty, disable export and surface per-row reasons (UI in later issues).
 
 `Equatable` on `CompatibilitySignature` is a convenience; production gating should use `CompatibilityComparer` so callers receive concrete reasons.

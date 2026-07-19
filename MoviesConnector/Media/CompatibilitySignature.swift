@@ -13,7 +13,7 @@ struct CompatibilitySignature: Equatable, Hashable, Sendable {
 
     /// Number of video tracks that would be inserted into the composition (v1 expects exactly 1).
     var videoTrackCount: Int
-    /// Number of audio tracks that would be inserted (v1 allows 0 or 1; all inputs must match).
+    /// Number of audio tracks present (v1 allows 0 or 1 only; `> 1` is unsupported topology).
     var audioTrackCount: Int
     /// True when any non video/audio track exists (timecode, subtitle, metadata media, etc.).
     var hasUnsupportedTracks: Bool
@@ -181,6 +181,17 @@ enum CompatibilityComparer {
             if rhs.videoTrackCount != 1 {
                 results.append(.unsupportedTopology("candidate must have exactly 1 video track (found \(rhs.videoTrackCount))"))
             }
+        }
+        // v1 inserts at most one audio track; multi-audio would be silently dropped by JoinExporter.
+        if lhs.audioTrackCount > 1 {
+            results.append(
+                .unsupportedTopology("reference must have at most 1 audio track (found \(lhs.audioTrackCount))")
+            )
+        }
+        if rhs.audioTrackCount > 1 {
+            results.append(
+                .unsupportedTopology("candidate must have at most 1 audio track (found \(rhs.audioTrackCount))")
+            )
         }
         if lhs.audioTrackCount != rhs.audioTrackCount {
             results.append(.audioTrackCount(lhs.audioTrackCount, rhs.audioTrackCount))

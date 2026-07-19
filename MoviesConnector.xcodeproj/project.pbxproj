@@ -15,6 +15,8 @@
 		A10000000000000000000006 /* JoinExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* JoinExporter.swift */; };
 		A10000000000000000000007 /* SecurityScopedAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* SecurityScopedAccess.swift */; };
 		A10000000000000000000008 /* CompatibilitySignatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* CompatibilitySignatureTests.swift */; };
+		A1000000000000000000000C /* AssetInspectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* AssetInspectorTests.swift */; };
+		A1000000000000000000000D /* SecurityScopedAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* SecurityScopedAccessTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -36,6 +38,8 @@
 		A20000000000000000000006 /* JoinExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinExporter.swift; sourceTree = "<group>"; };
 		A20000000000000000000007 /* SecurityScopedAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityScopedAccess.swift; sourceTree = "<group>"; };
 		A20000000000000000000008 /* CompatibilitySignatureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompatibilitySignatureTests.swift; sourceTree = "<group>"; };
+		A2000000000000000000000C /* AssetInspectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetInspectorTests.swift; sourceTree = "<group>"; };
+		A2000000000000000000000D /* SecurityScopedAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityScopedAccessTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000009 /* MoviesConnector.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MoviesConnector.entitlements; sourceTree = "<group>"; };
 		A2000000000000000000000A /* MoviesConnector.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MoviesConnector.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2000000000000000000000B /* MoviesConnectorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MoviesConnectorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -84,6 +88,8 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000008 /* CompatibilitySignatureTests.swift */,
+				A2000000000000000000000C /* AssetInspectorTests.swift */,
+				A2000000000000000000000D /* SecurityScopedAccessTests.swift */,
 			);
 			path = MoviesConnectorTests;
 			sourceTree = "<group>";
@@ -237,6 +243,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000008 /* CompatibilitySignatureTests.swift in Sources */,
+				A1000000000000000000000C /* AssetInspectorTests.swift in Sources */,
+				A1000000000000000000000D /* SecurityScopedAccessTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -317,6 +325,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = MoviesConnector/MoviesConnector.entitlements;
 				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 1;
