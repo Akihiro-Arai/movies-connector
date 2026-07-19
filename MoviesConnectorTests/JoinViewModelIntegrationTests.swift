@@ -111,10 +111,11 @@ final class JoinViewModelIntegrationTests: XCTestCase {
         await viewModel.chooseOutputDestination()
 
         XCTAssertEqual(viewModel.items[0].compatibility, .compatible)
-        guard case .incompatible(let reason) = viewModel.items[1].compatibility else {
+        guard case .incompatible(let mismatches) = viewModel.items[1].compatibility else {
             XCTFail("Expected incompatible second row from production AssetInspector signatures")
             return
         }
+        let reason = mismatches.map(\.description).joined(separator: "; ")
         XCTAssertTrue(
             reason.localizedCaseInsensitiveContains("display size")
                 || reason.localizedCaseInsensitiveContains("size"),

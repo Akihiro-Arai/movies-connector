@@ -1,0 +1,664 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "app.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Movies Connector" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Movies Connector" } }
+      }
+    },
+    "settings.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Settings" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "設定" } }
+      }
+    },
+    "settings.language" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Language" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "言語" } }
+      }
+    },
+    "settings.language.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Display" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "表示" } }
+      }
+    },
+    "settings.language.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Changes apply immediately to Movies Connector." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "変更はすぐに Movies Connector に反映されます。" } }
+      }
+    },
+    "language.system" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "System" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "システム設定に合わせる" } }
+      }
+    },
+    "ui.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drop videos from Finder or Photos, or add them below. Order in the list is the join order." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Finder や写真アプリから動画をドロップするか、下のボタンで追加してください。リストの順番が結合順です。" } }
+      }
+    },
+    "ui.empty.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drop videos from Finder or Photos" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Finder や写真アプリから動画をドロップ" } }
+      }
+    },
+    "ui.empty.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "or use Add Videos" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "または「動画を追加」を使用" } }
+      }
+    },
+    "ui.empty.a11y" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drop videos from Finder or Photos, or use Add Videos" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Finder や写真アプリから動画をドロップするか、「動画を追加」を使用" } }
+      }
+    },
+    "ui.output" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Output" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "出力先" } }
+      }
+    },
+    "ui.output.none" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No output selected" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "出力先未選択" } }
+      }
+    },
+    "ui.output.a11y %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Output destination: %@" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "出力先: %@" } }
+      }
+    },
+    "ui.choose" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose…" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "選択…" } }
+      }
+    },
+    "ui.choose.a11y" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose output destination" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "出力先を選択" } }
+      }
+    },
+    "ui.add_videos" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add Videos" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "動画を追加" } }
+      }
+    },
+    "ui.cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cancel" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キャンセル" } }
+      }
+    },
+    "ui.cancel.a11y" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cancel join" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "結合をキャンセル" } }
+      }
+    },
+    "ui.join" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Join" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "結合" } }
+      }
+    },
+    "ui.join.a11y" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Join videos" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "動画を結合" } }
+      }
+    },
+    "ui.join.hint.enabled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Starts lossless passthrough join" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "再エンコードなしで結合を開始します" } }
+      }
+    },
+    "ui.join.hint.disabled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Disabled until the queue is ready" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キューの準備が整うまで無効です" } }
+      }
+    },
+    "ui.progress.a11y" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Join progress" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "結合の進捗" } }
+      }
+    },
+    "ui.debug.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drop Debug Log" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ドロップデバッグログ" } }
+      }
+    },
+    "ui.debug.copy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Copy" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "コピー" } }
+      }
+    },
+    "ui.debug.clear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Clear" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "クリア" } }
+      }
+    },
+    "ui.debug.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drop a video (Finder or Photos). A full transcript will appear here — select text or use Copy." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "動画をドロップするとここに詳細ログが表示されます。テキストを選択するか「コピー」を使えます。" } }
+      }
+    },
+    "ui.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Loading…" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "読み込み中…" } }
+      }
+    },
+    "ui.dropped_video" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Dropped video" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ドロップした動画" } }
+      }
+    },
+    "ui.status.inspecting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Inspecting…" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "検査中…" } }
+      }
+    },
+    "ui.status.compatible" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Compatible" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "互換" } }
+      }
+    },
+    "ui.status.incompatible %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Incompatible — %@" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "非互換 — %@" } }
+      }
+    },
+    "ui.remove.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Remove from queue" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "キューから削除" } }
+      }
+    },
+    "status.drop_empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not read the dropped item. For Photos, drop a video (not a still photo)." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ドロップした項目を読み取れませんでした。写真アプリからは静止画ではなく動画をドロップしてください。" } }
+      }
+    },
+    "status.joined %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Joined %lld video(s) → %@" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%lld 本の動画を結合しました → %@" } }
+      }
+    },
+    "status.skip_one %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Skipped drop — %@" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ドロップをスキップ — %@" } }
+      }
+    },
+    "status.skip_many %lld %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Skipped %lld dropped item(s) — %@" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%lld 件のドロップをスキップ — %@" } }
+      }
+    },
+    "status.rejected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rejected" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "拒否" } }
+      }
+    },
+    "status.reference_unusable %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Reference item unusable: %@" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "基準の項目が使えません: %@" } }
+      }
+    },
+    "filter.not_file_url" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Only file URLs can be added." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ファイルの URL のみ追加できます。" } }
+      }
+    },
+    "filter.not_a_file" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Folders and non-file items are not supported." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "フォルダやファイル以外の項目はサポートしていません。" } }
+      }
+    },
+    "filter.unsupported_type" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unsupported file type. Choose a movie file." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "未対応のファイル形式です。動画ファイルを選んでください。" } }
+      }
+    },
+    "panel.open.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Select videos to join" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "結合する動画を選択" } }
+      }
+    },
+    "panel.open.prompt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "追加" } }
+      }
+    },
+    "panel.open.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add Videos" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "動画を追加" } }
+      }
+    },
+    "panel.save.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose output movie destination" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "出力先の動画を選択" } }
+      }
+    },
+    "panel.save.prompt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Select" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "選択" } }
+      }
+    },
+    "panel.save.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Export Movie" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "動画を書き出し" } }
+      }
+    },
+    "permission.movies.title %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Allow access to %@?" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%@ へのアクセスを許可しますか？" } }
+      }
+    },
+    "permission.movies.body %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Movies Connector saves joined videos in:\n%@\n\nClick Allow to create this folder and use it as the default output location." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "結合した動画は次の場所に保存されます:\n%@\n\n「許可」を押すとこのフォルダを作成し、デフォルトの出力先として使います。" } }
+      }
+    },
+    "permission.allow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Allow" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "許可" } }
+      }
+    },
+    "permission.not_now" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Not Now" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "あとで" } }
+      }
+    },
+    "permission.create_failed.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not create the output folder" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "出力フォルダを作成できませんでした" } }
+      }
+    },
+    "permission.ok" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "OK" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "OK" } }
+      }
+    },
+    "error.movies_unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not locate the Movies folder." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ムービーフォルダが見つかりません。" } }
+      }
+    },
+    "error.access_denied %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not access “%@”. Reselect the file in the open or save panel." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "「%@」にアクセスできません。開く／保存パネルでファイルを選び直してください。" } }
+      }
+    },
+    "error.icloud_download_failed %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not download “%@” from iCloud: %@" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "「%@」を iCloud からダウンロードできませんでした: %@" } }
+      }
+    },
+    "error.icloud_unavailable %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "“%@” is not available locally. Download it from iCloud Drive and try again." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "「%@」はローカルにありません。iCloud Drive からダウンロードして再度お試しください。" } }
+      }
+    },
+    "error.icloud_timeout %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Timed out while downloading “%@” from iCloud." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "「%@」の iCloud ダウンロードがタイムアウトしました。" } }
+      }
+    },
+    "error.export.empty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No input videos were provided." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "入力動画がありません。" } }
+      }
+    },
+    "error.export.output_collision" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Output destination must not be the same file as any input." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "出力先を入力ファイルと同じにはできません。" } }
+      }
+    },
+    "error.export.incompatible %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Inputs are incompatible for lossless join: %@" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ロスレス結合できない入力です: %@" } }
+      }
+    },
+    "error.export.composition" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not build the join composition." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "結合用の構成を作成できませんでした。" } }
+      }
+    },
+    "error.export.session" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not start a passthrough export session." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "パススルー書き出しを開始できませんでした。" } }
+      }
+    },
+    "error.export.failed %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Export failed: %@" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "書き出しに失敗しました: %@" } }
+      }
+    },
+    "error.export.disk_full" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Not enough disk space to finish the export." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "書き出しを完了するための空き容量が不足しています。" } }
+      }
+    },
+    "error.export.cancelled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Export cancelled." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "書き出しをキャンセルしました。" } }
+      }
+    },
+    "ui.remove.a11y %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Remove %@" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%@ を削除" } }
+      }
+    },
+    "ui.progress.value %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld percent" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%lld パーセント" } }
+      }
+    },
+    "ui.drop.cancel.help" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cancel this drop import" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "このドロップの読み込みをキャンセル" } }
+      }
+    },
+    "ui.drop.cancel.a11y %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cancel import of %@" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%@ の読み込みをキャンセル" } }
+      }
+    },
+    "compat.topology %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unsupported track layout: %@" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "非対応のトラック構成: %@" } }
+      }
+    },
+    "compat.video_track_count %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Video track count mismatch (%1$lld vs %2$lld)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ビデオトラック数が一致しません（%1$lld と %2$lld）" } }
+      }
+    },
+    "compat.audio_track_count %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Audio track count mismatch (%1$lld vs %2$lld)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "オーディオトラック数が一致しません（%1$lld と %2$lld）" } }
+      }
+    },
+    "compat.video_codec %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Video codec mismatch (%1$@ vs %2$@)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ビデオコーデックが一致しません（%1$@ と %2$@）" } }
+      }
+    },
+    "compat.video_display_size %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Video display size mismatch (%1$@ vs %2$@)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "表示サイズが一致しません（%1$@ と %2$@）" } }
+      }
+    },
+    "compat.video_transform" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Video preferred transform mismatch" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ビデオの変換行列が一致しません" } }
+      }
+    },
+    "compat.video_frame_duration %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Video frame duration mismatch (%1$@ vs %2$@)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "フレーム時間が一致しません（%1$@ と %2$@）" } }
+      }
+    },
+    "compat.video_timescale %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Video timescale mismatch (%1$@ vs %2$@)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "タイムスケールが一致しません（%1$@ と %2$@）" } }
+      }
+    },
+    "compat.audio_codec %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Audio codec mismatch (%1$@ vs %2$@)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "オーディオコーデックが一致しません（%1$@ と %2$@）" } }
+      }
+    },
+    "compat.audio_sample_rate %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Audio sample rate mismatch (%1$@ vs %2$@)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "サンプルレートが一致しません（%1$@ と %2$@）" } }
+      }
+    },
+    "compat.audio_channel_count %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Audio channel count mismatch (%1$@ vs %2$@)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "チャンネル数が一致しません（%1$@ と %2$@）" } }
+      }
+    },
+    "compat.audio_format_flags %@ %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Audio format flags mismatch (%1$@ vs %2$@)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "オーディオ形式フラグが一致しません（%1$@ と %2$@）" } }
+      }
+    },
+    "compat.asset_unsupported_tracks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Asset has unsupported tracks" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "非対応のトラックがあります" } }
+      }
+    },
+    "compat.asset_video_track_count %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Asset must have exactly 1 video track (found %lld)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ビデオトラックはちょうど 1 本である必要があります（%lld 本）" } }
+      }
+    },
+    "compat.asset_audio_track_count %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Asset must have at most 1 audio track (found %lld)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "オーディオトラックは最大 1 本です（%lld 本）" } }
+      }
+    },
+    "compat.reference_unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Reference asset metadata is unavailable" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "基準アセットのメタデータがありません" } }
+      }
+    },
+    "compat.cannot_compare_reference" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cannot compare: reference asset is unreadable" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "比較できません: 基準アセットを読めません" } }
+      }
+    },
+    "compat.reference_unsupported_tracks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "reference asset has unsupported tracks" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "基準アセットに非対応トラックがあります" } }
+      }
+    },
+    "compat.candidate_unsupported_tracks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "candidate asset has unsupported tracks" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "候補アセットに非対応トラックがあります" } }
+      }
+    },
+    "compat.reference_video_track_count %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "reference must have exactly 1 video track (found %lld)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "基準はビデオトラック 1 本である必要があります（%lld 本）" } }
+      }
+    },
+    "compat.candidate_video_track_count %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "candidate must have exactly 1 video track (found %lld)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "候補はビデオトラック 1 本である必要があります（%lld 本）" } }
+      }
+    },
+    "compat.reference_audio_track_count %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "reference must have at most 1 audio track (found %lld)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "基準のオーディオトラックは最大 1 本です（%lld 本）" } }
+      }
+    },
+    "compat.candidate_audio_track_count %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "candidate must have at most 1 audio track (found %lld)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "候補のオーディオトラックは最大 1 本です（%lld 本）" } }
+      }
+    }
+  },
+  "version" : "1.0"
+}

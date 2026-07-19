@@ -54,7 +54,10 @@ final class SystemVideoFileSelector: VideoFileSelecting {
 final class SystemOutputDestinationSelector: OutputDestinationSelecting {
     func selectOutputDestination(suggestedName: String) async -> URL? {
         await MainActor.run {
-            MovieSavePanel.present(suggestedName: suggestedName)
+            MovieSavePanel.present(
+                suggestedName: suggestedName,
+                directoryURL: DefaultOutputDirectory.managedDirectoryURL()
+            )
         }
     }
 }
@@ -62,16 +65,29 @@ final class SystemOutputDestinationSelector: OutputDestinationSelecting {
 // MARK: - Export
 
 protocol JoinExporting: Sendable {
+    /// - Parameter replaceExistingDestination: When `false`, commit never replaces an
+    ///   existing file (managed defaults — #18). May write to a uniquified sibling path.
+    /// - Returns: The URL actually written (may differ from `outputURL` when uniquified).
     func join(
         inputURLs: [URL],
         outputURL: URL,
+        replaceExistingDestination: Bool,
         progress: (@Sendable (Double) -> Void)?
-    ) async throws
+    ) async throws -> URL
 }
 
 extension JoinExporting {
-    func join(inputURLs: [URL], outputURL: URL) async throws {
-        try await join(inputURLs: inputURLs, outputURL: outputURL, progress: nil)
+    func join(
+        inputURLs: [URL],
+        outputURL: URL,
+        replaceExistingDestination: Bool = true
+    ) async throws -> URL {
+        try await join(
+            inputURLs: inputURLs,
+            outputURL: outputURL,
+            replaceExistingDestination: replaceExistingDestination,
+            progress: nil
+        )
     }
 }
 
@@ -80,12 +96,15 @@ struct DefaultJoinExporter: JoinExporting {
     func join(
         inputURLs: [URL],
         outputURL: URL,
+        replaceExistingDestination: Bool,
         progress: (@Sendable (Double) -> Void)?
-    ) async throws {
-        try await JoinExporter.join(
+    ) async throws -> URL {
+        let result = try await JoinExporter.join(
             inputURLs: inputURLs,
             outputURL: outputURL,
+            replaceExistingDestination: replaceExistingDestination,
             progress: progress
         )
+        return result.outputURL
     }
 }

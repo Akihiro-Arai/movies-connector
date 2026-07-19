@@ -172,7 +172,11 @@ enum AssetInspector: Sendable {
             case .audio:
                 audioTracks.append(track)
             default:
-                hasUnsupportedTracks = true
+                // Photos / iPhone movies often carry metadata, timecode, or text tracks.
+                // JoinExporter only inserts video + first audio, so those side-cars are fine.
+                if !isPassthroughIgnorableTrack(track.mediaType) {
+                    hasUnsupportedTracks = true
+                }
             }
         }
 
@@ -212,6 +216,8 @@ enum AssetInspector: Sendable {
         var audioChannelCount: Int?
         var audioFormatFlags: UInt32?
 
+        // Signature fields describe the first audio track (exporterExporter inserts at most one).
+        // `audioTrackCount` still reports every audio track so multi-audio is rejected.
         if let audioTrack = audioTracks.first {
             let audioFormats = try await audioTrack.load(.formatDescriptions)
             audioCodec = fourCC(from: audioFormats.first)
@@ -223,6 +229,8 @@ enum AssetInspector: Sendable {
             }
         }
 
+        // Report the true audio track count so multi-audio is rejected (v1 cannot
+        // passthrough every audio track). Side-car metadata/timecode/text remain ignorable.
         return CompatibilitySignature(
             videoTrackCount: videoTracks.count,
             audioTrackCount: audioTracks.count,
@@ -241,6 +249,18 @@ enum AssetInspector: Sendable {
     }
 
     // MARK: - Internals
+
+    /// Side-car tracks that are common on phone/Photos movies and never inserted by JoinExporter.
+    /// Photos / iPhone often attach non-rendered metadata/timecode side-cars.
+    /// User-visible text tracks (subtitle / CC / text) are NOT ignorable — they must reject.
+    nonisolated static func isPassthroughIgnorableTrack(_ mediaType: AVMediaType) -> Bool {
+        switch mediaType {
+        case .metadata, .timecode:
+            return true
+        default:
+            return false
+        }
+    }
 
     /// Loads duration + signature without peer comparison. Status is intrinsic topology only.
     /// Rethrows `CancellationError` before mapping other failures to unreadable/unsupported.
@@ -282,7 +302,9 @@ enum AssetInspector: Sendable {
                 index: index,
                 duration: duration,
                 signature: nil,
-                status: .unsupported("Asset must have exactly 1 video track (found 0)")
+                status: .unsupported(
+                    L10n.string("compat.asset_video_track_count \(Int64(0))")
+                )
             )
         } catch let AssetInspectorError.unreadable(detail) {
             return AssetInspectionResult(
@@ -315,14 +337,14 @@ enum AssetInspector: Sendable {
         if reference.signature == nil {
             // Keep the loaded unreadable/unsupported status on the reference row.
             if case .compatible = reference.status {
-                results[0].status = .unreadable("Reference asset metadata is unavailable")
+                results[0].status = .unreadable(L10n.string("compat.reference_unavailable"))
             }
             for index in 1..<results.count {
                 if results[index].signature == nil {
                     // Preserve per-row unreadable/unsupported from load.
                     continue
                 }
-                results[index].status = .unsupported("Cannot compare: reference asset is unreadable")
+                results[index].status = .unsupported(L10n.string("compat.cannot_compare_reference"))
             }
             return PreflightReport(results: results)
         }
@@ -374,13 +396,17 @@ enum AssetInspector: Sendable {
         // Prefer neutral wording for single-asset inspect (no reference/candidate role).
         var reasons: [String] = []
         if signature.hasUnsupportedTracks {
-            reasons.append("Asset has unsupported tracks")
+            reasons.append(L10n.string("compat.asset_unsupported_tracks"))
         }
         if signature.videoTrackCount != 1 {
-            reasons.append("Asset must have exactly 1 video track (found \(signature.videoTrackCount))")
+            reasons.append(
+                L10n.string("compat.asset_video_track_count \(Int64(signature.videoTrackCount))")
+            )
         }
         if signature.audioTrackCount > 1 {
-            reasons.append("Asset must have at most 1 audio track (found \(signature.audioTrackCount))")
+            reasons.append(
+                L10n.string("compat.asset_audio_track_count \(Int64(signature.audioTrackCount))")
+            )
         }
         if reasons.isEmpty {
             return .compatible
@@ -392,16 +418,46 @@ enum AssetInspector: Sendable {
         for signature: CompatibilitySignature,
         role: TopologyRole
     ) -> [String] {
-        let label = role == .reference ? "reference" : "candidate"
         var reasons: [String] = []
         if signature.hasUnsupportedTracks {
-            reasons.append("\(label) asset has unsupported tracks")
+            switch role {
+            case .reference:
+                reasons.append(L10n.string("compat.reference_unsupported_tracks"))
+            case .candidate:
+                reasons.append(L10n.string("compat.candidate_unsupported_tracks"))
+            }
         }
         if signature.videoTrackCount != 1 {
-            reasons.append("\(label) must have exactly 1 video track (found \(signature.videoTrackCount))")
+            switch role {
+            case .reference:
+                reasons.append(
+                    L10n.string(
+                        "compat.reference_video_track_count \(Int64(signature.videoTrackCount))"
+                    )
+                )
+            case .candidate:
+                reasons.append(
+                    L10n.string(
+                        "compat.candidate_video_track_count \(Int64(signature.videoTrackCount))"
+                    )
+                )
+            }
         }
         if signature.audioTrackCount > 1 {
-            reasons.append("\(label) must have at most 1 audio track (found \(signature.audioTrackCount))")
+            switch role {
+            case .reference:
+                reasons.append(
+                    L10n.string(
+                        "compat.reference_audio_track_count \(Int64(signature.audioTrackCount))"
+                    )
+                )
+            case .candidate:
+                reasons.append(
+                    L10n.string(
+                        "compat.candidate_audio_track_count \(Int64(signature.audioTrackCount))"
+                    )
+                )
+            }
         }
         return reasons
     }

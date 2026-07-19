@@ -400,6 +400,33 @@ final class JoinExporterTests: XCTestCase {
 
     /// Regression: `replaceItemAt` returns the post-replacement item URL (usually `outputURL`),
     /// not a backup. Deleting that return value wiped a successful final while reporting success.
+    /// Managed defaults must not replace a file that appears between arm and commit (#18).
+    func testNoClobberRedirectsWhenDestinationAppearsBeforeCommit() async throws {
+        let a = try await TestMovieFixtures.url(named: "compat_a.mov")
+        let b = try await TestMovieFixtures.url(named: "compat_b.mov")
+        let output = outputDirectory.appendingPathComponent("managed-default.mov")
+        let marker = "preexisting-managed-default"
+
+        JoinExporter.exportBodyForTesting = { tempURL in
+            try FileManager.default.copyItem(at: a, to: tempURL)
+        }
+        JoinExporter.afterDestinationExistenceCheckForTesting = { destination in
+            try marker.write(to: destination, atomically: true, encoding: .utf8)
+        }
+
+        let result = try await JoinExporter.join(
+            inputURLs: [a, b],
+            outputURL: output,
+            replaceExistingDestination: false
+        )
+
+        XCTAssertNotEqual(result.outputURL, output)
+        XCTAssertEqual(result.outputURL.lastPathComponent, "managed-default-2.mov")
+        XCTAssertEqual(try String(contentsOf: output, encoding: .utf8), marker)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: result.outputURL.path))
+        XCTAssertEqual(try Data(contentsOf: result.outputURL), try Data(contentsOf: a))
+    }
+
     func testReplaceExistingDestinationKeepsFinalOutputAndDropsOldContent() async throws {
         let a = try await TestMovieFixtures.url(named: "compat_a.mov")
         let b = try await TestMovieFixtures.url(named: "compat_b.mov")

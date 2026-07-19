@@ -19,11 +19,11 @@ enum DroppedMovieURLFilter {
         var errorDescription: String? {
             switch self {
             case .notAFileURL:
-                return "Only file URLs can be added."
+                return L10n.string("filter.not_file_url")
             case .notAFile:
-                return "Folders and non-file items are not supported."
+                return L10n.string("filter.not_a_file")
             case .unsupportedType:
-                return "Unsupported file type. Choose a movie file."
+                return L10n.string("filter.unsupported_type")
             }
         }
     }
@@ -46,38 +46,60 @@ enum DroppedMovieURLFilter {
         resourceInfoForTesting = nil
     }
 
-    static func filter(_ urls: [URL]) -> Result {
+    static func filter(_ urls: [URL], diagnostics: DropDiagnostics? = nil) -> Result {
+        diagnostics?.section("DroppedMovieURLFilter")
+        diagnostics?.log("input count=\(urls.count)")
+
         var accepted: [URL] = []
         var rejected: [Rejection] = []
 
-        for url in urls {
+        for (index, url) in urls.enumerated() {
+            diagnostics?.log("[\(index)] path=\(url.path) isFileURL=\(url.isFileURL)")
+
             guard url.isFileURL else {
                 rejected.append(Rejection(url: url, reason: .notAFileURL))
+                diagnostics?.log("[\(index)] REJECT notAFileURL")
                 continue
             }
 
-            guard let info = resourceInfo(for: url) else {
+            guard let info = resourceInfo(for: url, diagnostics: diagnostics) else {
                 rejected.append(Rejection(url: url, reason: .notAFile))
+                diagnostics?.log("[\(index)] REJECT notAFile (no resource info)")
                 continue
             }
+
+            diagnostics?.log(
+                "[\(index)] isRegularFile=\(info.isRegularFile) typeIdentifier=\(info.typeIdentifier ?? "nil") ext=\(url.pathExtension)"
+            )
 
             guard info.isRegularFile else {
                 rejected.append(Rejection(url: url, reason: .notAFile))
+                diagnostics?.log("[\(index)] REJECT notAFile (not regular file)")
                 continue
             }
 
-            guard MovieContentTypes.isSupportedMovie(url: url, typeIdentifier: info.typeIdentifier) else {
+            let supported = MovieContentTypes.isSupportedMovie(
+                url: url,
+                typeIdentifier: info.typeIdentifier
+            )
+            guard supported else {
                 rejected.append(Rejection(url: url, reason: .unsupportedType))
+                diagnostics?.log("[\(index)] REJECT unsupportedType")
                 continue
             }
 
             accepted.append(url)
+            diagnostics?.log("[\(index)] ACCEPT")
         }
 
+        diagnostics?.log("accepted=\(accepted.count) rejected=\(rejected.count)")
         return Result(accepted: accepted, rejected: rejected)
     }
 
-    private static func resourceInfo(for url: URL) -> ResourceInfo? {
+    private static func resourceInfo(
+        for url: URL,
+        diagnostics: DropDiagnostics? = nil
+    ) -> ResourceInfo? {
         if let resourceInfoForTesting {
             return resourceInfoForTesting(url)
         }
@@ -88,7 +110,12 @@ enum DroppedMovieURLFilter {
                 .isDirectoryKey,
                 .contentTypeKey,
                 .typeIdentifierKey,
+                .fileSizeKey,
+                .isReadableKey,
             ])
+            diagnostics?.log(
+                "resourceValues size=\(values.fileSize.map(String.init) ?? "?") readable=\(values.isReadable.map(String.init(describing:)) ?? "?") isDirectory=\(values.isDirectory.map(String.init(describing:)) ?? "?")"
+            )
             if values.isDirectory == true {
                 return ResourceInfo(isRegularFile: false, typeIdentifier: values.typeIdentifier)
             }
@@ -96,6 +123,7 @@ enum DroppedMovieURLFilter {
             let typeIdentifier = values.contentType?.identifier ?? values.typeIdentifier
             return ResourceInfo(isRegularFile: isFile, typeIdentifier: typeIdentifier)
         } catch {
+            diagnostics?.logError("resourceValues(\(url.lastPathComponent))", error)
             return nil
         }
     }

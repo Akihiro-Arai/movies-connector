@@ -10,13 +10,13 @@ enum UserSelectedURLAccessError: Error, LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .securityScopedAccessDenied(let url):
-            return "Could not access “\(url.lastPathComponent)”. Reselect the file in the open or save panel."
+            return L10n.string("error.access_denied \(url.lastPathComponent)")
         case .iCloudDownloadFailed(let url, let detail):
-            return "Could not download “\(url.lastPathComponent)” from iCloud: \(detail)"
+            return L10n.string("error.icloud_download_failed \(url.lastPathComponent) \(detail)")
         case .iCloudItemUnavailable(let url):
-            return "“\(url.lastPathComponent)” is not available locally. Download it from iCloud Drive and try again."
+            return L10n.string("error.icloud_unavailable \(url.lastPathComponent)")
         case .iCloudDownloadTimedOut(let url):
-            return "Timed out while downloading “\(url.lastPathComponent)” from iCloud."
+            return L10n.string("error.icloud_timeout \(url.lastPathComponent)")
         }
     }
 }
@@ -69,7 +69,10 @@ enum UserSelectedURLAccess {
         try await SecurityScopedAccess.withAccess(
             to: urls,
             onStartResult: { url, didStart in
-                if requireSecurityScopedAccess, !didStart {
+                if requireSecurityScopedAccess,
+                   !didStart,
+                   requiresSecurityScopedAccess(for: url)
+                {
                     throw UserSelectedURLAccessError.securityScopedAccessDenied(url)
                 }
             },
@@ -83,6 +86,52 @@ enum UserSelectedURLAccess {
                 return try await perform()
             }
         )
+    }
+
+    /// Security-scoped access is only required for files outside the app container that
+    /// are not already readable (e.g. open/save panel picks). Photos / file-promise drops
+    /// are copied into the container first — those must not demand a security scope.
+    /// Movies-folder paths are covered by `com.apple.security.assets.movies.read-write`.
+    static func requiresSecurityScopedAccess(for url: URL) -> Bool {
+        guard url.isFileURL else { return true }
+        if isAppManagedFileURL(url) {
+            return false
+        }
+        if DefaultOutputDirectory.isInsideMoviesDirectory(url) {
+            return false
+        }
+        if FileManager.default.isReadableFile(atPath: url.path) {
+            return false
+        }
+        return true
+    }
+
+    /// Sandbox container paths (tmp / caches / Application Support / container home).
+    static func isAppManagedFileURL(_ url: URL) -> Bool {
+        guard url.isFileURL else { return false }
+        let path = url.standardizedFileURL.path
+        let roots = appManagedDirectoryPaths()
+        return roots.contains { root in
+            path == root || path.hasPrefix(root + "/")
+        }
+    }
+
+    private static func appManagedDirectoryPaths() -> [String] {
+        var roots: [String] = [
+            FileManager.default.temporaryDirectory.standardizedFileURL.path,
+            FileManager.default.homeDirectoryForCurrentUser.standardizedFileURL.path,
+        ]
+        let search: [FileManager.SearchPathDirectory] = [
+            .cachesDirectory,
+            .applicationSupportDirectory,
+            .documentDirectory,
+        ]
+        for directory in search {
+            if let url = FileManager.default.urls(for: directory, in: .userDomainMask).first {
+                roots.append(url.standardizedFileURL.path)
+            }
+        }
+        return roots
     }
 
     @discardableResult

@@ -3,6 +3,144 @@ import XCTest
 
 @MainActor
 final class JoinViewModelTests: XCTestCase {
+    func testDropCopyDisplayNameStripsUUIDPrefix() {
+        let url = URL(
+            fileURLWithPath:
+                "/tmp/724EDF5B-DAF2-4774-B40D-9F9E115449F4-IMG_3765.MOV"
+        )
+        XCTAssertEqual(JoinQueueItem.preferredDisplayName(for: url), "IMG_3765.MOV")
+        XCTAssertEqual(JoinQueueItem(url: url).displayName, "IMG_3765.MOV")
+    }
+
+    func testPrepareDefaultOutputUsesMoviesConnectorFolder() throws {
+        let movies = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FakeMovies-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: movies, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: movies)
+            DefaultOutputDirectory.resetForTesting()
+            MoviesOutputAccess.resetForTesting()
+        }
+
+        DefaultOutputDirectory.moviesDirectoryForTesting = movies
+        MoviesOutputAccess.defaultsForTesting = UserDefaults(
+            suiteName: "MoviesConnectorTests.\(UUID().uuidString)"
+        )
+        MoviesOutputAccess.confirmForTesting = { true }
+
+        let viewModel = makeViewModel(inspector: MockAssetInspector(results: [:]))
+        viewModel.prepareDefaultOutputIfNeeded()
+
+        let output = try XCTUnwrap(viewModel.outputURL)
+        XCTAssertTrue(DefaultOutputDirectory.isInsideManagedDirectory(output))
+        XCTAssertEqual(output.lastPathComponent, "joined.mov")
+    }
+
+    func testConcurrentDropImportsKeepMutationEnabledAndClearPerRow() {
+        let movieA = URL(fileURLWithPath: "/Movies/a.mov")
+        let movieB = URL(fileURLWithPath: "/Movies/b.mov")
+        DroppedMovieURLFilter.resourceInfoForTesting = { _ in
+            DroppedMovieURLFilter.ResourceInfo(
+                isRegularFile: true,
+                typeIdentifier: "com.apple.quicktime-movie"
+            )
+        }
+        defer { DroppedMovieURLFilter.resetForTesting() }
+
+        let viewModel = makeViewModel(
+            inspector: MockAssetInspector(results: [
+                movieA: .success(Self.inspection(duration: 1, width: 320)),
+                movieB: .success(Self.inspection(duration: 1, width: 320)),
+            ])
+        )
+        let first = viewModel.beginDropImport(title: "First")
+        let second = viewModel.beginDropImport(title: "Second")
+        XCTAssertEqual(viewModel.pendingDropImports.count, 2)
+        XCTAssertTrue(viewModel.isImportingDrop)
+        XCTAssertTrue(viewModel.isMutationEnabled, "Must allow more drops while loading")
+        XCTAssertFalse(viewModel.canJoin)
+
+        viewModel.completeDropImport(
+            id: first,
+            outcome: DropLoadOutcome(urls: [movieA], diagnostics: DropDiagnostics())
+        )
+        XCTAssertEqual(viewModel.pendingDropImports.map(\.id), [second])
+        XCTAssertEqual(viewModel.orderedInputURLs, [movieA])
+
+        viewModel.completeDropImport(
+            id: second,
+            outcome: DropLoadOutcome(urls: [movieB], diagnostics: DropDiagnostics())
+        )
+        XCTAssertTrue(viewModel.pendingDropImports.isEmpty)
+        XCTAssertFalse(viewModel.isImportingDrop)
+        XCTAssertEqual(viewModel.orderedInputURLs, [movieA, movieB])
+    }
+
+    func testConcurrentDropImportPreservesStartOrderWhenSecondCompletesFirst() {
+        let movieA = URL(fileURLWithPath: "/Movies/a.mov")
+        let movieB = URL(fileURLWithPath: "/Movies/b.mov")
+        DroppedMovieURLFilter.resourceInfoForTesting = { _ in
+            DroppedMovieURLFilter.ResourceInfo(
+                isRegularFile: true,
+                typeIdentifier: "com.apple.quicktime-movie"
+            )
+        }
+        defer { DroppedMovieURLFilter.resetForTesting() }
+
+        let viewModel = makeViewModel(
+            inspector: MockAssetInspector(results: [
+                movieA: .success(Self.inspection(duration: 1, width: 320)),
+                movieB: .success(Self.inspection(duration: 1, width: 320)),
+            ])
+        )
+        let first = viewModel.beginDropImport(title: "First")
+        let second = viewModel.beginDropImport(title: "Second")
+
+        // Reverse completion order must not reorder the join queue (#20).
+        viewModel.completeDropImport(
+            id: second,
+            outcome: DropLoadOutcome(urls: [movieB], diagnostics: DropDiagnostics())
+        )
+        XCTAssertEqual(viewModel.entries.map(\.id), [first, viewModel.items[0].id])
+        XCTAssertEqual(viewModel.orderedInputURLs, [movieB])
+
+        viewModel.completeDropImport(
+            id: first,
+            outcome: DropLoadOutcome(urls: [movieA], diagnostics: DropDiagnostics())
+        )
+        XCTAssertEqual(viewModel.orderedInputURLs, [movieA, movieB])
+        XCTAssertEqual(viewModel.items.map(\.url), [movieA, movieB])
+    }
+
+    func testCancelDropImportClearsPendingAndRestoresCanJoinGate() async {
+        let movie = URL(fileURLWithPath: "/Movies/a.mov")
+        DroppedMovieURLFilter.resourceInfoForTesting = { _ in
+            DroppedMovieURLFilter.ResourceInfo(
+                isRegularFile: true,
+                typeIdentifier: "com.apple.quicktime-movie"
+            )
+        }
+        defer { DroppedMovieURLFilter.resetForTesting() }
+
+        let viewModel = makeViewModel(
+            inspector: MockAssetInspector(results: [
+                movie: .success(Self.inspection(duration: 1, width: 320)),
+            ])
+        )
+        viewModel.addURLs([movie])
+        await waitUntil(viewModel) { $0.items.allSatisfy { $0.compatibility == .compatible } }
+        viewModel.setOutputURLForTesting(URL(fileURLWithPath: "/tmp/out.mov"))
+        XCTAssertTrue(viewModel.canJoin)
+
+        let pending = viewModel.beginDropImport(title: "Stuck")
+        XCTAssertFalse(viewModel.canJoin)
+
+        viewModel.cancelDropImport(id: pending)
+        XCTAssertTrue(viewModel.pendingDropImports.isEmpty)
+        XCTAssertFalse(viewModel.isImportingDrop)
+        XCTAssertTrue(viewModel.canJoin)
+    }
+
     func testAddPreservesOrderAndStableDistinctIdentitiesForSameURL() async {
         let url = URL(fileURLWithPath: "/tmp/same.mov")
         let inspector = MockAssetInspector(results: [
@@ -33,7 +171,8 @@ final class JoinViewModelTests: XCTestCase {
         await waitUntil(viewModel) { self.itemsReady($0) }
 
         XCTAssertEqual(viewModel.items[0].compatibility, .compatible)
-        if case .incompatible(let reason) = viewModel.items[1].compatibility {
+        if case .incompatible(let mismatches) = viewModel.items[1].compatibility {
+            let reason = mismatches.map(\.description).joined(separator: "; ")
             XCTAssertTrue(reason.contains("display size"), reason)
         } else {
             XCTFail("Expected second item incompatible against 320 reference")
@@ -42,7 +181,8 @@ final class JoinViewModelTests: XCTestCase {
         viewModel.moveItems(from: IndexSet(integer: 1), to: 0)
         XCTAssertEqual(viewModel.orderedInputURLs, [b, a])
         XCTAssertEqual(viewModel.items[0].compatibility, .compatible)
-        if case .incompatible(let reason) = viewModel.items[1].compatibility {
+        if case .incompatible(let mismatches) = viewModel.items[1].compatibility {
+            let reason = mismatches.map(\.description).joined(separator: "; ")
             XCTAssertTrue(reason.contains("display size"), reason)
         } else {
             XCTFail("Expected former reference incompatible against 640 reference")
@@ -233,8 +373,8 @@ final class JoinViewModelTests: XCTestCase {
         viewModel.addURLs([url])
         await waitUntil(viewModel) { self.itemsReady($0) }
 
-        guard case .incompatible(let reason) = viewModel.items.first?.compatibility else {
-            XCTFail("Expected incompatible row after access denial")
+        guard case .failed(let reason) = viewModel.items.first?.compatibility else {
+            XCTFail("Expected failed row after access denial")
             return
         }
         XCTAssertTrue(reason.contains("denied.mov") || reason.contains("Reselect"), reason)
@@ -251,8 +391,8 @@ final class JoinViewModelTests: XCTestCase {
         await waitUntil(viewModel) { self.itemsReady($0) }
         viewModel.setOutputURLForTesting(URL(fileURLWithPath: "/tmp/out.mov"))
 
-        guard case .incompatible(let reason) = viewModel.items.first?.compatibility else {
-            XCTFail("Expected incompatible row after inspection failure")
+        guard case .failed(let reason) = viewModel.items.first?.compatibility else {
+            XCTFail("Expected failed row after inspection failure")
             return
         }
         XCTAssertTrue(reason.contains("no video track") || reason.contains("video"), reason)
@@ -850,11 +990,13 @@ private final class MockExporter: JoinExporting, @unchecked Sendable {
     func join(
         inputURLs: [URL],
         outputURL: URL,
+        replaceExistingDestination: Bool,
         progress: (@Sendable (Double) -> Void)?
-    ) async throws {
+    ) async throws -> URL {
         lastInputURLs = inputURLs
         lastOutputURL = outputURL
         progress?(1)
+        return outputURL
     }
 }
 
@@ -925,8 +1067,9 @@ private final class GatedMockExporter: JoinExporting, @unchecked Sendable {
     func join(
         inputURLs: [URL],
         outputURL: URL,
+        replaceExistingDestination: Bool,
         progress: (@Sendable (Double) -> Void)?
-    ) async throws {
+    ) async throws -> URL {
         lastInputURLs = inputURLs
         lastOutputURL = outputURL
         progress?(0.2)
@@ -946,6 +1089,7 @@ private final class GatedMockExporter: JoinExporting, @unchecked Sendable {
             throw throwOnResume
         }
         progress?(1)
+        return outputURL
     }
 }
 
@@ -963,8 +1107,9 @@ private final class SequenceMockExporter: JoinExporting, @unchecked Sendable {
     func join(
         inputURLs: [URL],
         outputURL: URL,
+        replaceExistingDestination: Bool,
         progress: (@Sendable (Double) -> Void)?
-    ) async throws {
+    ) async throws -> URL {
         lock.lock()
         joinCallCount += 1
         lastInputURLs = inputURLs
@@ -980,7 +1125,7 @@ private final class SequenceMockExporter: JoinExporting, @unchecked Sendable {
         progress?(1)
         switch outcome {
         case .success:
-            return
+            return outputURL
         case .failure(let error):
             throw error
         }
@@ -1024,8 +1169,9 @@ private final class DualGenerationMockExporter: JoinExporting, @unchecked Sendab
     func join(
         inputURLs: [URL],
         outputURL: URL,
+        replaceExistingDestination: Bool,
         progress: (@Sendable (Double) -> Void)?
-    ) async throws {
+    ) async throws -> URL {
         lock.lock()
         joinEnteredCount += 1
         let callIndex = joinEnteredCount
@@ -1051,10 +1197,11 @@ private final class DualGenerationMockExporter: JoinExporting, @unchecked Sendab
         if callIndex == 1 {
             await firstGate.waitIfNeeded()
             progress?(1)
-            return
+            return outputURL
         }
 
         await secondGate.waitIfNeeded()
         progress?(1)
+        return outputURL
     }
 }

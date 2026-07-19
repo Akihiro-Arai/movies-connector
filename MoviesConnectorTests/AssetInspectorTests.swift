@@ -243,4 +243,15 @@ final class AssetInspectorTests: XCTestCase {
             enforceOrder: true
         )
     }
+
+    func testPhotosSideCarTracksAreIgnorableForPassthrough() {
+        XCTAssertTrue(AssetInspector.isPassthroughIgnorableTrack(.metadata))
+        XCTAssertTrue(AssetInspector.isPassthroughIgnorableTrack(.timecode))
+        XCTAssertFalse(AssetInspector.isPassthroughIgnorableTrack(.text))
+        XCTAssertFalse(AssetInspector.isPassthroughIgnorableTrack(.closedCaption))
+        XCTAssertFalse(AssetInspector.isPassthroughIgnorableTrack(.subtitle))
+        XCTAssertFalse(AssetInspector.isPassthroughIgnorableTrack(.video))
+        XCTAssertFalse(AssetInspector.isPassthroughIgnorableTrack(.audio))
+        XCTAssertFalse(AssetInspector.isPassthroughIgnorableTrack(.muxed))
+    }
 }

@@ -14,21 +14,21 @@ enum JoinExporterError: Error, LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .emptyInput:
-            return "No input videos were provided."
+            return L10n.string("error.export.empty")
         case .outputCollidesWithInput:
-            return "Output destination must not be the same file as any input."
+            return L10n.string("error.export.output_collision")
         case .incompatible(let reasons):
-            return "Inputs are incompatible for lossless join: \(reasons.joined(separator: "; "))"
+            return L10n.string("error.export.incompatible \(reasons.joined(separator: "; "))")
         case .cannotCreateComposition:
-            return "Could not build the join composition."
+            return L10n.string("error.export.composition")
         case .cannotCreateExportSession:
-            return "Could not start a passthrough export session."
+            return L10n.string("error.export.session")
         case .exportFailed(let detail):
-            return "Export failed: \(detail)"
+            return L10n.string("error.export.failed \(detail)")
         case .diskFull:
-            return "Not enough disk space to finish the export."
+            return L10n.string("error.export.disk_full")
         case .cancelled:
-            return "Export cancelled."
+            return L10n.string("error.export.cancelled")
         }
     }
 }
@@ -86,6 +86,7 @@ enum JoinExporter {
     static func join(
         inputURLs: [URL],
         outputURL: URL,
+        replaceExistingDestination: Bool = true,
         progress: (@Sendable (Double) -> Void)? = nil
     ) async throws -> Result {
         guard !inputURLs.isEmpty else { throw JoinExporterError.emptyInput }
@@ -101,6 +102,7 @@ enum JoinExporter {
                     return try await joinWithPreparedAccess(
                         inputURLs: inputURLs,
                         outputURL: outputURL,
+                        replaceExistingDestination: replaceExistingDestination,
                         progress: progress
                     )
                 } catch let error as JoinExporterError {
@@ -136,6 +138,7 @@ enum JoinExporter {
     private static func joinWithPreparedAccess(
         inputURLs: [URL],
         outputURL: URL,
+        replaceExistingDestination: Bool,
         progress: (@Sendable (Double) -> Void)?
     ) async throws -> Result {
         reportProgress(0, to: progress, last: nil)
@@ -215,13 +218,17 @@ enum JoinExporter {
 
         // Final cancellation check, then commit. No throw/await after a successful install.
         try Task.checkCancellation()
-        try commitStaging(from: stagingURL, to: outputURL)
+        let writtenURL = try commitStaging(
+            from: stagingURL,
+            to: outputURL,
+            replaceExistingDestination: replaceExistingDestination
+        )
         stagingCommitted = true
 
         reportProgress(1, to: progress, last: lastProgress)
         let elapsed = DispatchTime.now().uptimeNanoseconds - started
         return Result(
-            outputURL: outputURL,
+            outputURL: writtenURL,
             elapsedNanoseconds: elapsed,
             inputCount: inputURLs.count,
             expectedDuration: built.expectedDuration,
@@ -430,32 +437,59 @@ enum JoinExporter {
     /// Important: `FileManager.replaceItemAt` returns the URL of the resulting item *after*
     /// replacement (typically `outputURL`), **not** a backup URL. Backup location is derived
     /// from `backupItemName` only; never delete the replace return value.
-    private static func commitStaging(from stagingURL: URL, to outputURL: URL) throws {
+    /// - Returns: The URL that received the export (may be uniquified when replacing is disallowed).
+    @discardableResult
+    private static func commitStaging(
+        from stagingURL: URL,
+        to outputURL: URL,
+        replaceExistingDestination: Bool
+    ) throws -> URL {
         let fm = FileManager.default
-        let destinationExisted = fm.fileExists(atPath: outputURL.path)
+        var destinationURL = outputURL
         var backupURL: URL?
 
         do {
+            // Snapshot before the race hook. For replace-allowed commits, a file that appears
+            // afterward must make `moveItem` fail rather than silently replace a third-party file.
+            let existedBeforeHook = fm.fileExists(atPath: destinationURL.path)
+
             if let afterDestinationExistenceCheckForTesting {
-                try afterDestinationExistenceCheckForTesting(outputURL)
+                try afterDestinationExistenceCheckForTesting(destinationURL)
+            }
+
+            if !replaceExistingDestination {
+                // Managed defaults: never clobber — uniquify if anything occupies the path (#18).
+                if fm.fileExists(atPath: destinationURL.path) {
+                    destinationURL = DefaultOutputDirectory.uniqueFileURL(
+                        in: destinationURL.deletingLastPathComponent(),
+                        fileName: destinationURL.lastPathComponent
+                    )
+                }
+                if let installExportForTesting {
+                    try installExportForTesting(stagingURL, destinationURL)
+                    removeJobOutputIfPresent(stagingURL)
+                    return destinationURL
+                }
+                try fm.moveItem(at: stagingURL, to: destinationURL)
+                return destinationURL
             }
 
             if let installExportForTesting {
-                try installExportForTesting(stagingURL, outputURL)
+                try installExportForTesting(stagingURL, destinationURL)
                 // Test hook owns the commit; drop leftover staging so only the destination remains.
                 removeJobOutputIfPresent(stagingURL)
-                return
+                return destinationURL
             }
 
-            if destinationExisted {
+            if existedBeforeHook {
                 let backupName = ".movies-connector-backup-\(UUID().uuidString)"
-                let knownBackupURL = outputURL
+                let knownBackupURL = destinationURL
                     .deletingLastPathComponent()
                     .appendingPathComponent(backupName)
                 // Track before replace so failure paths can restore/clean the known backup only.
                 backupURL = knownBackupURL
                 _ = try fm.replaceItemAt(
-                    outputURL,
+                    destinationURL,
                     withItemAt: stagingURL,
                     backupItemName: backupName,
                     options: .withoutDeletingBackupItem
@@ -464,15 +498,16 @@ enum JoinExporter {
                 removeJobOutputIfPresent(knownBackupURL)
                 backupURL = nil
             } else {
-                try fm.moveItem(at: stagingURL, to: outputURL)
+                try fm.moveItem(at: stagingURL, to: destinationURL)
             }
+            return destinationURL
         } catch {
             // Own only staging + explicit backup. Never delete the final URL by existence alone.
             removeJobOutputIfPresent(stagingURL)
             if let backupURL, fm.fileExists(atPath: backupURL.path) {
                 // Best-effort restore if replace left the original aside and failed afterward.
-                if !fm.fileExists(atPath: outputURL.path) {
-                    try? fm.moveItem(at: backupURL, to: outputURL)
+                if !fm.fileExists(atPath: destinationURL.path) {
+                    try? fm.moveItem(at: backupURL, to: destinationURL)
                 } else {
                     try? fm.removeItem(at: backupURL)
                 }
