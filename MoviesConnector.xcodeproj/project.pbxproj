@@ -10,6 +10,8 @@
 		A10000000000000000000001 /* MoviesConnectorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* MoviesConnectorApp.swift */; };
 		A10000000000000000000002 /* JoinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* JoinView.swift */; };
 		A10000000000000000000003 /* JoinViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* JoinViewModel.swift */; };
+		A10000000000000000000017 /* JoinProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* JoinProtocols.swift */; };
+		A10000000000000000000018 /* JoinQueueItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* JoinQueueItem.swift */; };
 		A10000000000000000000004 /* CompatibilitySignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* CompatibilitySignature.swift */; };
 		A10000000000000000000005 /* AssetInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* AssetInspector.swift */; };
 		A10000000000000000000006 /* JoinExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* JoinExporter.swift */; };
@@ -21,12 +23,13 @@
 		A10000000000000000000012 /* UserSelectedURLAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000012 /* UserSelectedURLAccess.swift */; };
 		A10000000000000000000008 /* CompatibilitySignatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* CompatibilitySignatureTests.swift */; };
 		A1000000000000000000000C /* AssetInspectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000C /* AssetInspectorTests.swift */; };
-		A1000000000000000000000E /* TestMovieFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000E /* TestMovieFixtures.swift */; };
+		A1000000000000000000001A /* TestMovieFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001A /* TestMovieFixtures.swift */; };
 		A1000000000000000000000D /* SecurityScopedAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000000D /* SecurityScopedAccessTests.swift */; };
 		A10000000000000000000013 /* DroppedMovieURLFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* DroppedMovieURLFilterTests.swift */; };
 		A10000000000000000000014 /* MovieSavePanelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* MovieSavePanelTests.swift */; };
 		A10000000000000000000015 /* UserSelectedURLAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* UserSelectedURLAccessTests.swift */; };
 		A10000000000000000000016 /* MovieContentTypesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* MovieContentTypesTests.swift */; };
+		A10000000000000000000019 /* JoinViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* JoinViewModelTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -43,6 +46,8 @@
 		A20000000000000000000001 /* MoviesConnectorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoviesConnectorApp.swift; sourceTree = "<group>"; };
 		A20000000000000000000002 /* JoinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinView.swift; sourceTree = "<group>"; };
 		A20000000000000000000003 /* JoinViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinViewModel.swift; sourceTree = "<group>"; };
+		A20000000000000000000017 /* JoinProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinProtocols.swift; sourceTree = "<group>"; };
+		A20000000000000000000018 /* JoinQueueItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinQueueItem.swift; sourceTree = "<group>"; };
 		A20000000000000000000004 /* CompatibilitySignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompatibilitySignature.swift; sourceTree = "<group>"; };
 		A20000000000000000000005 /* AssetInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetInspector.swift; sourceTree = "<group>"; };
 		A20000000000000000000006 /* JoinExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinExporter.swift; sourceTree = "<group>"; };
@@ -54,12 +59,13 @@
 		A20000000000000000000012 /* UserSelectedURLAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSelectedURLAccess.swift; sourceTree = "<group>"; };
 		A20000000000000000000008 /* CompatibilitySignatureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompatibilitySignatureTests.swift; sourceTree = "<group>"; };
 		A2000000000000000000000C /* AssetInspectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetInspectorTests.swift; sourceTree = "<group>"; };
-		A2000000000000000000000E /* TestMovieFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestMovieFixtures.swift; sourceTree = "<group>"; };
+		A2000000000000000000001A /* TestMovieFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestMovieFixtures.swift; sourceTree = "<group>"; };
 		A2000000000000000000000D /* SecurityScopedAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityScopedAccessTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000013 /* DroppedMovieURLFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DroppedMovieURLFilterTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000014 /* MovieSavePanelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieSavePanelTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000015 /* UserSelectedURLAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSelectedURLAccessTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000016 /* MovieContentTypesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieContentTypesTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000019 /* JoinViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinViewModelTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000009 /* MoviesConnector.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MoviesConnector.entitlements; sourceTree = "<group>"; };
 		A2000000000000000000000A /* MoviesConnector.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MoviesConnector.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2000000000000000000000B /* MoviesConnectorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MoviesConnectorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -109,12 +115,13 @@
 			children = (
 				A20000000000000000000008 /* CompatibilitySignatureTests.swift */,
 				A2000000000000000000000C /* AssetInspectorTests.swift */,
-				A2000000000000000000000E /* TestMovieFixtures.swift */,
+				A2000000000000000000001A /* TestMovieFixtures.swift */,
 				A2000000000000000000000D /* SecurityScopedAccessTests.swift */,
 				A20000000000000000000013 /* DroppedMovieURLFilterTests.swift */,
 				A20000000000000000000014 /* MovieSavePanelTests.swift */,
 				A20000000000000000000015 /* UserSelectedURLAccessTests.swift */,
 				A20000000000000000000016 /* MovieContentTypesTests.swift */,
+				A20000000000000000000019 /* JoinViewModelTests.swift */,
 			);
 			path = MoviesConnectorTests;
 			sourceTree = "<group>";
@@ -141,6 +148,8 @@
 			children = (
 				A20000000000000000000002 /* JoinView.swift */,
 				A20000000000000000000003 /* JoinViewModel.swift */,
+				A20000000000000000000017 /* JoinProtocols.swift */,
+				A20000000000000000000018 /* JoinQueueItem.swift */,
 			);
 			path = Join;
 			sourceTree = "<group>";
@@ -261,6 +270,8 @@
 				A10000000000000000000001 /* MoviesConnectorApp.swift in Sources */,
 				A10000000000000000000002 /* JoinView.swift in Sources */,
 				A10000000000000000000003 /* JoinViewModel.swift in Sources */,
+				A10000000000000000000017 /* JoinProtocols.swift in Sources */,
+				A10000000000000000000018 /* JoinQueueItem.swift in Sources */,
 				A10000000000000000000004 /* CompatibilitySignature.swift in Sources */,
 				A10000000000000000000005 /* AssetInspector.swift in Sources */,
 				A10000000000000000000006 /* JoinExporter.swift in Sources */,
@@ -279,12 +290,13 @@
 			files = (
 				A10000000000000000000008 /* CompatibilitySignatureTests.swift in Sources */,
 				A1000000000000000000000C /* AssetInspectorTests.swift in Sources */,
-				A1000000000000000000000E /* TestMovieFixtures.swift in Sources */,
+				A1000000000000000000001A /* TestMovieFixtures.swift in Sources */,
 				A1000000000000000000000D /* SecurityScopedAccessTests.swift in Sources */,
 				A10000000000000000000013 /* DroppedMovieURLFilterTests.swift in Sources */,
 				A10000000000000000000014 /* MovieSavePanelTests.swift in Sources */,
 				A10000000000000000000015 /* UserSelectedURLAccessTests.swift in Sources */,
 				A10000000000000000000016 /* MovieContentTypesTests.swift in Sources */,
+				A10000000000000000000019 /* JoinViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
