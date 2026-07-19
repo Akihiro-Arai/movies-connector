@@ -4,7 +4,7 @@ import XCTest
 
 final class AssetInspectorTests: XCTestCase {
     func testVideoTimescaleUsesNaturalTimeScaleNotTimeRangeStart() async throws {
-        let fixtureURL = try Self.ensureCompatFixture()
+        let fixtureURL = try await TestMovieFixtures.compatA()
         let asset = AVURLAsset(url: fixtureURL)
         let videoTracks = try await asset.loadTracks(withMediaType: .video)
         let videoTrack = try XCTUnwrap(videoTracks.first)
@@ -35,7 +35,7 @@ final class AssetInspectorTests: XCTestCase {
     }
 
     func testInspectReturnsDurationAndSignatureForCompatibleFixture() async throws {
-        let url = try Self.ensureCompatFixture()
+        let url = try await TestMovieFixtures.compatA()
         let result = await AssetInspector.inspect(url)
 
         XCTAssertEqual(result.url, url)
@@ -49,8 +49,8 @@ final class AssetInspectorTests: XCTestCase {
     }
 
     func testCompatiblePairPassesPreflight() async throws {
-        let a = try Self.fixtureURL("compat_a.mov")
-        let b = try Self.fixtureURL("compat_b.mov")
+        let a = try await TestMovieFixtures.url(named: "compat_a.mov")
+        let b = try await TestMovieFixtures.url(named: "compat_b.mov")
         let report = await AssetInspector.preflight(urls: [a, b])
 
         XCTAssertTrue(report.canExport)
@@ -62,8 +62,8 @@ final class AssetInspectorTests: XCTestCase {
     }
 
     func testDisplaySizeMismatchProducesRowAddressableReason() async throws {
-        let a = try Self.fixtureURL("compat_a.mov")
-        let bad = try Self.fixtureURL("incompat_size.mov")
+        let a = try await TestMovieFixtures.url(named: "compat_a.mov")
+        let bad = try await TestMovieFixtures.url(named: "incompat_size.mov")
         let report = await AssetInspector.preflight(urls: [a, bad])
 
         XCTAssertFalse(report.canExport)
@@ -85,8 +85,8 @@ final class AssetInspectorTests: XCTestCase {
     }
 
     func testFrameDurationMismatchProducesRowAddressableReason() async throws {
-        let a = try Self.fixtureURL("compat_a.mov")
-        let bad = try Self.fixtureURL("incompat_fps.mov")
+        let a = try await TestMovieFixtures.url(named: "compat_a.mov")
+        let bad = try await TestMovieFixtures.url(named: "incompat_fps.mov")
         let report = await AssetInspector.preflight(urls: [a, bad])
 
         XCTAssertFalse(report.canExport)
@@ -104,7 +104,7 @@ final class AssetInspectorTests: XCTestCase {
     func testUnreadableInputIsReportedWithoutCrashing() async throws {
         let missing = FileManager.default.temporaryDirectory
             .appendingPathComponent("movies-connector-missing-\(UUID().uuidString).mov")
-        let readable = try Self.ensureCompatFixture()
+        let readable = try await TestMovieFixtures.compatA()
 
         let report = await AssetInspector.preflight(urls: [missing, readable])
         XCTAssertFalse(report.canExport)
@@ -119,9 +119,9 @@ final class AssetInspectorTests: XCTestCase {
     }
 
     func testBatchPreflightPreservesCallerOrder() async throws {
-        let a = try Self.fixtureURL("compat_a.mov")
-        let b = try Self.fixtureURL("compat_b.mov")
-        let size = try Self.fixtureURL("incompat_size.mov")
+        let a = try await TestMovieFixtures.url(named: "compat_a.mov")
+        let b = try await TestMovieFixtures.url(named: "compat_b.mov")
+        let size = try await TestMovieFixtures.url(named: "incompat_size.mov")
         let urls = [size, b, a]
 
         let report = await AssetInspector.preflight(urls: urls)
@@ -130,8 +130,8 @@ final class AssetInspectorTests: XCTestCase {
     }
 
     func testReferenceChangeRecomputesCompatibility() async throws {
-        let a = try Self.fixtureURL("compat_a.mov")
-        let size = try Self.fixtureURL("incompat_size.mov")
+        let a = try await TestMovieFixtures.url(named: "compat_a.mov")
+        let size = try await TestMovieFixtures.url(named: "incompat_size.mov")
 
         let forward = await AssetInspector.preflight(urls: [a, size])
         XCTAssertEqual(forward.results[0].status, .compatible)
@@ -153,8 +153,8 @@ final class AssetInspectorTests: XCTestCase {
     }
 
     func testReusingInspectionsWithCompatibleReferencePasses() async throws {
-        let a = try Self.fixtureURL("compat_a.mov")
-        let b = try Self.fixtureURL("compat_b.mov")
+        let a = try await TestMovieFixtures.url(named: "compat_a.mov")
+        let b = try await TestMovieFixtures.url(named: "compat_b.mov")
         let loaded = await AssetInspector.preflight(urls: [a, b])
         let recomputed = AssetInspector.preflight(reusing: loaded.results)
         XCTAssertTrue(recomputed.canExport)
@@ -162,8 +162,8 @@ final class AssetInspectorTests: XCTestCase {
     }
 
     func testAssertCompatibleForExportThrowsForMismatch() async throws {
-        let a = try Self.fixtureURL("compat_a.mov")
-        let bad = try Self.fixtureURL("incompat_size.mov")
+        let a = try await TestMovieFixtures.url(named: "compat_a.mov")
+        let bad = try await TestMovieFixtures.url(named: "incompat_size.mov")
 
         do {
             try await AssetInspector.assertCompatibleForExport(urls: [a, bad])
@@ -175,14 +175,14 @@ final class AssetInspectorTests: XCTestCase {
     }
 
     func testAssertCompatibleForExportSucceedsForCompatiblePair() async throws {
-        let a = try Self.fixtureURL("compat_a.mov")
-        let b = try Self.fixtureURL("compat_b.mov")
+        let a = try await TestMovieFixtures.url(named: "compat_a.mov")
+        let b = try await TestMovieFixtures.url(named: "compat_b.mov")
         try await AssetInspector.assertCompatibleForExport(urls: [a, b])
     }
 
     func testJoinExporterPreflightUsesRowAddressableReasons() async throws {
-        let a = try Self.fixtureURL("compat_a.mov")
-        let bad = try Self.fixtureURL("incompat_fps.mov")
+        let a = try await TestMovieFixtures.url(named: "compat_a.mov")
+        let bad = try await TestMovieFixtures.url(named: "incompat_fps.mov")
 
         do {
             try await JoinExporter.preflightCompatibility(inputURLs: [a, bad])
@@ -193,64 +193,49 @@ final class AssetInspectorTests: XCTestCase {
     }
 
     func testInspectDoesNotBlockMainActor() async throws {
-        let url = try Self.ensureCompatFixture()
-        let finished = expectation(description: "inspection finished")
+        let url = try await TestMovieFixtures.compatA()
 
+        let heartbeatBeforeCompletion = expectation(
+            description: "MainActor heartbeat progressed before inspection completed"
+        )
+        let inspectionFinished = expectation(description: "inspection finished")
+
+        // Launch from MainActor, then wait off the actor so fulfillment does not deadlock.
         Task { @MainActor in
-            // Pump the main actor while inspection runs so a blocking load would stall this hop.
-            var pumped = false
-            Task.detached {
-                _ = await AssetInspector.inspect(url)
-                finished.fulfill()
+            final class Flag: @unchecked Sendable {
+                var inspectionCompleted = false
             }
-            await Task.yield()
-            pumped = true
-            XCTAssertTrue(pumped)
+            let flag = Flag()
+
+            let inspection = Task { @MainActor in
+                _ = await AssetInspector.inspect(url)
+                flag.inspectionCompleted = true
+                inspectionFinished.fulfill()
+            }
+
+            let heartbeat = Task { @MainActor in
+                // Yield so `inspection` can start and hit its first async suspension.
+                await Task.yield()
+                await Task.yield()
+                // If inspect blocked the MainActor through completion, this hop would only
+                // run after `inspectionCompleted == true`, and we would fail the ordering check.
+                if !flag.inspectionCompleted {
+                    heartbeatBeforeCompletion.fulfill()
+                } else {
+                    XCTFail(
+                        "Inspection completed before MainActor heartbeat could run; cannot prove non-blocking"
+                    )
+                }
+            }
+
+            _ = await inspection.value
+            _ = await heartbeat.value
         }
 
-        await fulfillment(of: [finished], timeout: 30)
-    }
-
-    // MARK: - Fixtures
-
-    private static func fixtureURL(_ name: String) throws -> URL {
-        let url = repoRoot().appendingPathComponent("Fixtures", isDirectory: true)
-            .appendingPathComponent(name)
-        if FileManager.default.fileExists(atPath: url.path) {
-            return url
-        }
-        _ = try ensureCompatFixture()
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            throw XCTSkip("Missing fixture \(name)")
-        }
-        return url
-    }
-
-    private static func ensureCompatFixture() throws -> URL {
-        let fixturesDir = repoRoot().appendingPathComponent("Fixtures", isDirectory: true)
-        let url = fixturesDir.appendingPathComponent("compat_a.mov")
-        if FileManager.default.fileExists(atPath: url.path) {
-            return url
-        }
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/swift")
-        process.arguments = [
-            repoRoot().appendingPathComponent("Scripts/generate_spike_fixtures.swift").path,
-            fixturesDir.path,
-        ]
-        process.currentDirectoryURL = repoRoot()
-        try process.run()
-        process.waitUntilExit()
-        guard process.terminationStatus == 0, FileManager.default.fileExists(atPath: url.path) else {
-            throw XCTSkip("Could not generate Fixtures/compat_a.mov for AssetInspector tests")
-        }
-        return url
-    }
-
-    private static func repoRoot() -> URL {
-        URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent() // MoviesConnectorTests
-            .deletingLastPathComponent() // repo root
+        await fulfillment(
+            of: [heartbeatBeforeCompletion, inspectionFinished],
+            timeout: 30,
+            enforceOrder: true
+        )
     }
 }
