@@ -89,21 +89,32 @@ struct PreflightReport: Sendable, Equatable {
 /// be treated as main-actor work — callers on `@MainActor` should `await` these methods so the
 /// actor can suspend while I/O and track inspection run.
 enum AssetInspector: Sendable {
+    /// Test seam: invoked at the start of each inspection load (cancellation injection).
+    static var beforeLoadInspectionForTesting: (@Sendable (URL) async throws -> Void)?
+
+    static func resetForTesting() {
+        beforeLoadInspectionForTesting = nil
+    }
+
     /// Inspect a single asset: duration + signature when readable, with intrinsic topology status.
     /// Does not compare against peers; use `preflight(urls:)` for ordered set evaluation.
-    nonisolated static func inspect(_ url: URL, index: Int = 0) async -> AssetInspectionResult {
-        await loadInspection(url: url, index: index)
+    /// Propagates `CancellationError` rather than mapping it to `.unreadable`.
+    nonisolated static func inspect(_ url: URL, index: Int = 0) async throws -> AssetInspectionResult {
+        try await loadInspection(url: url, index: index)
     }
 
     /// Batch preflight for an ordered input set. The first URL is the reference
     /// (`docs/COMPATIBILITY.md`). Re-call whenever items are added, removed, or reordered.
     /// Preserves the caller's input order in `PreflightReport.results`.
-    nonisolated static func preflight(urls: [URL]) async -> PreflightReport {
+    /// Propagates `CancellationError` from AV loads; call `Task.checkCancellation()` before judgment.
+    nonisolated static func preflight(urls: [URL]) async throws -> PreflightReport {
         var loaded: [AssetInspectionResult] = []
         loaded.reserveCapacity(urls.count)
         for (index, url) in urls.enumerated() {
-            loaded.append(await loadInspection(url: url, index: index))
+            try Task.checkCancellation()
+            loaded.append(try await loadInspection(url: url, index: index))
         }
+        try Task.checkCancellation()
         return evaluate(loadedInspections: loaded)
     }
 
@@ -126,7 +137,8 @@ enum AssetInspector: Sendable {
 
     /// Exporter-callable immediate preflight: throws when the ordered set cannot passthrough-join.
     nonisolated static func assertCompatibleForExport(urls: [URL]) async throws {
-        let report = await preflight(urls: urls)
+        let report = try await preflight(urls: urls)
+        try Task.checkCancellation()
         guard report.canExport else {
             throw AssetInspectorError.incompatible(report.formattedReasons)
         }
@@ -142,9 +154,12 @@ enum AssetInspector: Sendable {
         let tracks: [AVAssetTrack]
         do {
             tracks = try await asset.load(.tracks)
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             throw AssetInspectorError.unreadable(error.localizedDescription)
         }
+        try Task.checkCancellation()
 
         var videoTracks: [AVAssetTrack] = []
         var audioTracks: [AVAssetTrack] = []
@@ -228,19 +243,29 @@ enum AssetInspector: Sendable {
     // MARK: - Internals
 
     /// Loads duration + signature without peer comparison. Status is intrinsic topology only.
-    nonisolated private static func loadInspection(url: URL, index: Int) async -> AssetInspectionResult {
+    /// Rethrows `CancellationError` before mapping other failures to unreadable/unsupported.
+    nonisolated private static func loadInspection(url: URL, index: Int) async throws -> AssetInspectionResult {
+        if let beforeLoadInspectionForTesting {
+            try await beforeLoadInspectionForTesting(url)
+        }
+
         let asset = AVURLAsset(url: url)
 
         let duration: CMTime?
         do {
             let loaded = try await asset.load(.duration)
             duration = (loaded.isValid && !loaded.isIndefinite) ? loaded : nil
+        } catch is CancellationError {
+            throw CancellationError()
         } catch {
             duration = nil
         }
 
+        try Task.checkCancellation()
+
         do {
             let signature = try await makeSignature(for: asset)
+            try Task.checkCancellation()
             let status = intrinsicStatus(for: signature)
             return AssetInspectionResult(
                 url: url,
@@ -249,6 +274,8 @@ enum AssetInspector: Sendable {
                 signature: signature,
                 status: status
             )
+        } catch is CancellationError {
+            throw CancellationError()
         } catch AssetInspectorError.noVideoTrack {
             return AssetInspectionResult(
                 url: url,

@@ -50,18 +50,24 @@ enum JoinExporter {
 
     /// When set, replaces the AV passthrough export body (writes must land at `tempURL`).
     static var exportBodyForTesting: (@Sendable (URL) async throws -> Void)?
-    /// Invoked after export + duration validation, immediately before install.
+    /// Invoked after staging + duration validation, immediately before final rename/replace.
     static var beforeCommitForTesting: (@Sendable () async throws -> Void)?
-    /// When set, replaces the FileManager install step.
-    static var installExportForTesting: (@Sendable (URL, URL) throws -> Void)?
-    /// Observes the job-owned temp URL once it is allocated.
+    /// When set, replaces the final staging→destination commit step.
+    static var installExportForTesting: (@Sendable (_ stagingURL: URL, _ destinationURL: URL) throws -> Void)?
+    /// Observes the job-owned system-temp URL once it is allocated.
     static var didCreateTempURLForTesting: (@Sendable (URL) -> Void)?
+    /// Invoked after destination existence is sampled and before rename/replace (race tests).
+    static var afterDestinationExistenceCheckForTesting: (@Sendable (URL) throws -> Void)?
+    /// Invoked immediately before composition track loading (cancellation injection).
+    static var beforeBuildTracksLoadForTesting: (@Sendable () async throws -> Void)?
 
     static func resetForTesting() {
         exportBodyForTesting = nil
         beforeCommitForTesting = nil
         installExportForTesting = nil
         didCreateTempURLForTesting = nil
+        afterDestinationExistenceCheckForTesting = nil
+        beforeBuildTracksLoadForTesting = nil
     }
 
     /// Joins `inputURLs` in exact caller order to `outputURL` using passthrough export.
@@ -69,9 +75,9 @@ enum JoinExporter {
     /// - Acquires inputs + output through `UserSelectedURLAccess.withPreparedAccess`
     /// - Rejects output colliding with any input before preflight/write
     /// - Re-runs batch compatibility preflight before composition; refuses on failure
-    /// - Writes to a job-owned temp file, validates duration on temp, then installs into `outputURL`
+    /// - Writes to a job-owned temp, stages beside the destination, validates there, then rename/replace
     /// - After a successful commit, never throws or awaits (cancel cannot unwind a finished write)
-    /// - On cancel/failure, removes only this job's partial temp / job-created destination
+    /// - On cancel/failure, removes only staging / explicit backup — never the final URL by existence alone
     /// - Reports monotonic progress in `0...1` via `progress`
     @discardableResult
     static func join(
@@ -84,27 +90,33 @@ enum JoinExporter {
         var scoped = inputURLs
         scoped.append(outputURL)
 
-        // Access-layer errors propagate unchanged; only the export body is normalized.
-        return try await UserSelectedURLAccess.withPreparedAccess(to: scoped) {
-            do {
-                return try await joinWithPreparedAccess(
-                    inputURLs: inputURLs,
-                    outputURL: outputURL,
-                    progress: progress
-                )
-            } catch let error as JoinExporterError {
-                throw error
-            } catch is CancellationError {
-                throw JoinExporterError.cancelled
-            } catch {
-                throw mapExportError(error)
+        // Access-layer typed errors (e.g. security-scope denial) propagate unchanged.
+        // CancellationError from the entire prepared-access lifetime becomes `.cancelled`.
+        do {
+            return try await UserSelectedURLAccess.withPreparedAccess(to: scoped) {
+                do {
+                    return try await joinWithPreparedAccess(
+                        inputURLs: inputURLs,
+                        outputURL: outputURL,
+                        progress: progress
+                    )
+                } catch let error as JoinExporterError {
+                    throw error
+                } catch is CancellationError {
+                    throw JoinExporterError.cancelled
+                } catch {
+                    throw mapExportError(error)
+                }
             }
+        } catch is CancellationError {
+            throw JoinExporterError.cancelled
         }
     }
 
     /// Immediate preflight before export — reuses `AssetInspector` row-addressable results.
     static func preflightCompatibility(inputURLs: [URL]) async throws {
-        let report = await AssetInspector.preflight(urls: inputURLs)
+        let report = try await AssetInspector.preflight(urls: inputURLs)
+        try Task.checkCancellation()
         guard report.canExport else {
             throw JoinExporterError.incompatible(report.formattedReasons)
         }
@@ -140,7 +152,7 @@ enum JoinExporter {
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("movies-connector-job-\(jobID).mov")
         didCreateTempURLForTesting?(tempURL)
-        // Only this job's temp output is eligible for cleanup — never inputs or an unmanaged destination.
+        // System-temp is always job-owned; staging is cleaned unless successfully committed.
         defer { removeJobOutputIfPresent(tempURL) }
 
         let started = DispatchTime.now().uptimeNanoseconds
@@ -173,13 +185,21 @@ enum JoinExporter {
             throw mapExportError(error)
         }
 
-        // Validate duration on temp *before* commit so a load failure cannot leave a committed output.
+        // Stage beside the destination (same volume), validate there, then rename/replace to commit.
         try Task.checkCancellation()
+        let stagingURL = try moveToDestinationStaging(from: tempURL, destination: outputURL, jobID: jobID)
+        var stagingCommitted = false
+        defer {
+            if !stagingCommitted {
+                removeJobOutputIfPresent(stagingURL)
+            }
+        }
+
         let outputDuration: CMTime
         do {
-            outputDuration = try await AVURLAsset(url: tempURL).load(.duration)
+            outputDuration = try await AVURLAsset(url: stagingURL).load(.duration)
         } catch is CancellationError {
-            throw JoinExporterError.cancelled
+            throw CancellationError()
         } catch {
             throw mapExportError(error)
         }
@@ -192,7 +212,8 @@ enum JoinExporter {
 
         // Final cancellation check, then commit. No throw/await after a successful install.
         try Task.checkCancellation()
-        try installExport(from: tempURL, to: outputURL)
+        try commitStaging(from: stagingURL, to: outputURL)
+        stagingCommitted = true
 
         reportProgress(1, to: progress, last: lastProgress)
         let elapsed = DispatchTime.now().uptimeNanoseconds - started
@@ -228,17 +249,28 @@ enum JoinExporter {
             try Task.checkCancellation()
 
             let asset = AVURLAsset(url: url)
+            if let beforeBuildTracksLoadForTesting {
+                try await beforeBuildTracksLoadForTesting()
+            }
             let tracks: [AVAssetTrack]
             do {
                 tracks = try await asset.load(.tracks)
+            } catch is CancellationError {
+                throw CancellationError()
             } catch {
                 throw JoinExporterError.incompatible([
                     "file unreadable (\(url.lastPathComponent)): \(error.localizedDescription)",
                 ])
             }
 
+            try Task.checkCancellation()
             let videoTrack = try firstTrack(in: tracks, mediaType: .video)
-            let duration = try await asset.load(.duration)
+            let duration: CMTime
+            do {
+                duration = try await asset.load(.duration)
+            } catch is CancellationError {
+                throw CancellationError()
+            }
             let timeRange = CMTimeRange(start: .zero, duration: duration)
 
             do {
@@ -355,26 +387,76 @@ enum JoinExporter {
         }
     }
 
-    /// Installs the temp export into `outputURL`.
-    /// Records whether the destination pre-existed; on failure, removes only a job-created destination
-    /// and never deletes a pre-existing destination.
-    private static func installExport(from tempURL: URL, to outputURL: URL) throws {
+    /// Moves the system-temp export into a job-specific staging URL beside the destination.
+    private static func moveToDestinationStaging(
+        from tempURL: URL,
+        destination outputURL: URL,
+        jobID: String
+    ) throws -> URL {
+        let fm = FileManager.default
+        let parent = outputURL.deletingLastPathComponent()
+        do {
+            try fm.createDirectory(at: parent, withIntermediateDirectories: true)
+            let stagingURL = parent.appendingPathComponent(
+                ".movies-connector-staging-\(jobID).mov"
+            )
+            if fm.fileExists(atPath: stagingURL.path) {
+                try fm.removeItem(at: stagingURL)
+            }
+            try fm.moveItem(at: tempURL, to: stagingURL)
+            return stagingURL
+        } catch {
+            throw mapExportError(error)
+        }
+    }
+
+    /// Commits a validated staging file to `outputURL` via same-volume rename/replace.
+    ///
+    /// Failure cleans only staging / an explicit backup created by this commit — never deletes
+    /// `outputURL` merely because it exists (another process may own it).
+    private static func commitStaging(from stagingURL: URL, to outputURL: URL) throws {
         let fm = FileManager.default
         let destinationExisted = fm.fileExists(atPath: outputURL.path)
+        var backupURL: URL?
+
         do {
+            if let afterDestinationExistenceCheckForTesting {
+                try afterDestinationExistenceCheckForTesting(outputURL)
+            }
+
             if let installExportForTesting {
-                try installExportForTesting(tempURL, outputURL)
-            } else if destinationExisted {
-                _ = try fm.replaceItemAt(outputURL, withItemAt: tempURL)
+                try installExportForTesting(stagingURL, outputURL)
+                // Test hook owns the commit; drop leftover staging so only the destination remains.
+                removeJobOutputIfPresent(stagingURL)
+                return
+            }
+
+            if destinationExisted {
+                let backupName = ".movies-connector-backup-\(UUID().uuidString)"
+                let createdBackup = try fm.replaceItemAt(
+                    outputURL,
+                    withItemAt: stagingURL,
+                    backupItemName: backupName,
+                    options: []
+                )
+                backupURL = createdBackup
+                if let createdBackup {
+                    try? fm.removeItem(at: createdBackup)
+                    backupURL = nil
+                }
             } else {
-                let parent = outputURL.deletingLastPathComponent()
-                try fm.createDirectory(at: parent, withIntermediateDirectories: true)
-                try fm.moveItem(at: tempURL, to: outputURL)
+                try fm.moveItem(at: stagingURL, to: outputURL)
             }
         } catch {
-            // Transactional cleanup: only remove a destination this job newly created.
-            if !destinationExisted, fm.fileExists(atPath: outputURL.path) {
-                try? fm.removeItem(at: outputURL)
+            // Own only staging + explicit backup. Never delete the final URL by existence alone.
+            removeJobOutputIfPresent(stagingURL)
+            if let backupURL, fm.fileExists(atPath: backupURL.path) {
+                // Best-effort restore if replace left the original aside and failed afterward.
+                if !fm.fileExists(atPath: outputURL.path) {
+                    try? fm.moveItem(at: backupURL, to: outputURL)
+                } else {
+                    try? fm.removeItem(at: backupURL)
+                }
             }
             throw mapExportError(error)
         }

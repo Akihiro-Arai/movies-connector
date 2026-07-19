@@ -9,6 +9,7 @@ final class JoinExporterTests: XCTestCase {
     override func setUp() async throws {
         try await super.setUp()
         JoinExporter.resetForTesting()
+        AssetInspector.resetForTesting()
         outputDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent("movies-connector-join-tests", isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -18,6 +19,7 @@ final class JoinExporterTests: XCTestCase {
 
     override func tearDown() {
         JoinExporter.resetForTesting()
+        AssetInspector.resetForTesting()
         UserSelectedURLAccess.resetForTesting()
         if let outputDirectory {
             try? FileManager.default.removeItem(at: outputDirectory)
@@ -264,36 +266,113 @@ final class JoinExporterTests: XCTestCase {
         }
     }
 
-    func testInstallFailureCleansOnlyJobCreatedDestination() async throws {
+    func testInstallRaceDoesNotDeleteExternalDestinationMarker() async throws {
         let a = try await TestMovieFixtures.url(named: "compat_a.mov")
         let b = try await TestMovieFixtures.url(named: "compat_b.mov")
-        let output = outputDirectory.appendingPathComponent("new-dest.mov")
+        let output = outputDirectory.appendingPathComponent("race-dest.mov")
+        let marker = "external-owner-marker"
 
         JoinExporter.exportBodyForTesting = { tempURL in
             try FileManager.default.copyItem(at: a, to: tempURL)
         }
-        JoinExporter.installExportForTesting = { _, destination in
-            try Data("partial".utf8).write(to: destination)
-            throw NSError(
-                domain: NSCocoaErrorDomain,
-                code: NSFileWriteUnknownError,
-                userInfo: [NSLocalizedDescriptionKey: "simulated install failure"]
+        // After the exporter samples "destination missing", plant a third-party file.
+        JoinExporter.afterDestinationExistenceCheckForTesting = { destination in
+            XCTAssertFalse(
+                FileManager.default.fileExists(atPath: destination.path),
+                "Precondition: destination should be absent at existence check"
             )
+            try marker.write(to: destination, atomically: true, encoding: .utf8)
         }
 
         do {
             _ = try await JoinExporter.join(inputURLs: [a, b], outputURL: output)
-            XCTFail("Expected exportFailed")
+            XCTFail("Expected install failure when external marker appears")
         } catch JoinExporterError.exportFailed {
-            // expected
+            // expected — rename/replace cannot claim a third-party file
         }
 
-        XCTAssertFalse(
-            FileManager.default.fileExists(atPath: output.path),
-            "Job-created destination must be cleaned up after install failure"
+        XCTAssertEqual(
+            try String(contentsOf: output, encoding: .utf8),
+            marker,
+            "Third-party destination created after existence check must not be deleted"
         )
         XCTAssertTrue(FileManager.default.fileExists(atPath: a.path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: b.path))
+
+        let leftovers = try FileManager.default.contentsOfDirectory(atPath: outputDirectory.path)
+        XCTAssertFalse(
+            leftovers.contains { $0.hasPrefix(".movies-connector-staging-") },
+            "Failed commit must clean job staging, not the final URL"
+        )
+    }
+
+    func testAccessPhaseCancellationNormalizesToCancelled() async throws {
+        let a = try await TestMovieFixtures.url(named: "compat_a.mov")
+        let b = try await TestMovieFixtures.url(named: "compat_b.mov")
+        let output = outputDirectory.appendingPathComponent("access-cancel.mov")
+
+        UserSelectedURLAccess.ubiquitousItemStateForTesting = { _ in
+            UbiquitousItemState(
+                isUbiquitous: true,
+                downloadingStatus: .downloaded,
+                isDownloading: true,
+                downloadingErrorDescription: nil,
+                isReadable: false
+            )
+        }
+        UserSelectedURLAccess.startDownloadingForTesting = { _ in }
+        UserSelectedURLAccess.sleepForTesting = { _ in
+            throw CancellationError()
+        }
+
+        do {
+            _ = try await JoinExporter.join(inputURLs: [a, b], outputURL: output)
+            XCTFail("Expected cancelled from prepared-access cancellation")
+        } catch JoinExporterError.cancelled {
+            // expected — raw CancellationError before body must become .cancelled
+        }
+    }
+
+    func testPreflightPhaseCancellationNormalizesToCancelled() async throws {
+        let a = try await TestMovieFixtures.url(named: "compat_a.mov")
+        let b = try await TestMovieFixtures.url(named: "compat_b.mov")
+        let output = outputDirectory.appendingPathComponent("preflight-cancel.mov")
+
+        AssetInspector.beforeLoadInspectionForTesting = { _ in
+            throw CancellationError()
+        }
+
+        do {
+            _ = try await JoinExporter.join(inputURLs: [a, b], outputURL: output)
+            XCTFail("Expected cancelled from preflight cancellation")
+        } catch JoinExporterError.cancelled {
+            // expected — must not surface as .incompatible / .unreadable
+        } catch JoinExporterError.incompatible {
+            XCTFail("Preflight CancellationError must not map to incompatible")
+        }
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
+    }
+
+    func testBuildPhaseCancellationNormalizesToCancelled() async throws {
+        let a = try await TestMovieFixtures.url(named: "compat_a.mov")
+        let b = try await TestMovieFixtures.url(named: "compat_b.mov")
+        let output = outputDirectory.appendingPathComponent("build-cancel.mov")
+
+        JoinExporter.beforeBuildTracksLoadForTesting = {
+            throw CancellationError()
+        }
+
+        do {
+            _ = try await JoinExporter.join(inputURLs: [a, b], outputURL: output)
+            XCTFail("Expected cancelled from build-phase cancellation")
+        } catch JoinExporterError.cancelled {
+            // expected — tracks-load CancellationError must not become .incompatible
+        } catch JoinExporterError.incompatible {
+            XCTFail("Build CancellationError must not map to incompatible")
+        }
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
     }
 
     func testTransactionalInstallRemovesPartialNewDestinationOnMoveFailure() async throws {

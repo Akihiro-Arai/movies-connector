@@ -15,6 +15,8 @@ final class JoinViewModel: ObservableObject {
 
     /// Per-item inspection generation; stale async completions are ignored.
     private var inspectionGenerations: [UUID: Int] = [:]
+    /// Increments each time a join job is armed; selectors use this to ignore stale results.
+    private var joinGeneration = 0
     /// ViewModel-owned join task so Cancel can cooperatively cancel the exporter.
     private var joinTask: Task<Void, Never>?
 
@@ -99,8 +101,11 @@ final class JoinViewModel: ObservableObject {
 
     func chooseOutputDestination() async {
         guard !isJoining else { return }
+        let generationAtStart = joinGeneration
         let suggested = suggestedOutputName()
         if let url = await outputSelector.selectOutputDestination(suggestedName: suggested) {
+            // Join may have armed while the selector was open — drop the stale selection.
+            guard !isJoining, joinGeneration == generationAtStart else { return }
             outputURL = url
             statusMessage = nil
         }
@@ -113,10 +118,10 @@ final class JoinViewModel: ObservableObject {
 
     /// Starts join on a ViewModel-owned task (UI). Prefer `join()` in tests for structured await.
     func startJoin() {
-        guard canJoin, let outputURL else { return }
+        guard let job = armJoinJob() else { return }
         joinTask?.cancel()
         joinTask = Task { [weak self] in
-            await self?.performJoin(outputURL: outputURL)
+            await self?.performJoin(job)
             await MainActor.run { self?.joinTask = nil }
         }
     }
@@ -128,8 +133,8 @@ final class JoinViewModel: ObservableObject {
 
     /// Runs join in the caller's task so cancellation and completion are awaitable in tests.
     func join() async {
-        guard canJoin, let outputURL else { return }
-        await performJoin(outputURL: outputURL)
+        guard let job = armJoinJob() else { return }
+        await performJoin(job)
     }
 
     // MARK: - Compatibility
@@ -207,21 +212,33 @@ final class JoinViewModel: ObservableObject {
         recomputeCompatibility()
     }
 
-    private func performJoin(outputURL: URL) async {
-        // Immutable snapshot for the running job — UI queue/output must not drift mid-export.
-        let snapshotInputs = orderedInputURLs
-        let snapshotInputCount = snapshotInputs.count
-        let snapshotOutput = outputURL
-
+    /// Synchronously snapshots inputs/output and enters the joining state before any Task/await.
+    private func armJoinJob() -> JoinJobSnapshot? {
+        guard canJoin, let outputURL else { return nil }
+        let snapshot = JoinJobSnapshot(
+            inputs: orderedInputURLs,
+            inputCount: items.count,
+            outputURL: outputURL,
+            generation: joinGeneration &+ 1
+        )
+        joinGeneration = snapshot.generation
         isJoining = true
         joinProgress = 0
         statusMessage = nil
-        defer { isJoining = false }
+        return snapshot
+    }
+
+    private func performJoin(_ job: JoinJobSnapshot) async {
+        defer {
+            if joinGeneration == job.generation {
+                isJoining = false
+            }
+        }
 
         do {
             try await exporter.join(
-                inputURLs: snapshotInputs,
-                outputURL: snapshotOutput
+                inputURLs: job.inputs,
+                outputURL: job.outputURL
             ) { [weak self] value in
                 Task { @MainActor in
                     guard let self else { return }
@@ -232,7 +249,7 @@ final class JoinViewModel: ObservableObject {
             }
             joinProgress = 1
             statusMessage =
-                "Joined \(snapshotInputCount) video(s) → \(snapshotOutput.lastPathComponent)"
+                "Joined \(job.inputCount) video(s) → \(job.outputURL.lastPathComponent)"
         } catch is CancellationError {
             statusMessage = JoinExporterError.cancelled.errorDescription
         } catch let error as JoinExporterError where error == .cancelled {
@@ -240,6 +257,13 @@ final class JoinViewModel: ObservableObject {
         } catch {
             statusMessage = error.localizedDescription
         }
+    }
+
+    private struct JoinJobSnapshot {
+        var inputs: [URL]
+        var inputCount: Int
+        var outputURL: URL
+        var generation: Int
     }
 
     private func suggestedOutputName() -> String {
