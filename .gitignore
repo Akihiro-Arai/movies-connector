@@ -9,9 +9,20 @@ xcuserdata/
 *.dSYM.zip
 *.dSYM
 
-# Spike / acceptance fixtures (regenerate with Scripts/)
-Fixtures/*.mov
-Fixtures/acceptance/
+# Video / media — never commit (user footage or generated fixtures)
+*.mp4
+*.mov
+*.m4v
+*.mkv
+*.avi
+*.webm
+*.mpg
+*.mpeg
+*.mts
+*.m2ts
+*.3gp
+*.ts
+Fixtures/
 /tmp/
 /tmp/movies-connector-acceptance/
 
