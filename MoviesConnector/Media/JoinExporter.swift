@@ -54,6 +54,8 @@ enum JoinExporter {
     static var beforeCommitForTesting: (@Sendable () async throws -> Void)?
     /// When set, replaces the final staging→destination commit step.
     static var installExportForTesting: (@Sendable (_ stagingURL: URL, _ destinationURL: URL) throws -> Void)?
+    /// When set, replaces the temp→staging move (partial-staging / cross-volume failure injection).
+    static var moveToStagingForTesting: (@Sendable (_ tempURL: URL, _ stagingURL: URL) throws -> Void)?
     /// Observes the job-owned system-temp URL once it is allocated.
     static var didCreateTempURLForTesting: (@Sendable (URL) -> Void)?
     /// Invoked after destination existence is sampled and before rename/replace (race tests).
@@ -65,6 +67,7 @@ enum JoinExporter {
         exportBodyForTesting = nil
         beforeCommitForTesting = nil
         installExportForTesting = nil
+        moveToStagingForTesting = nil
         didCreateTempURLForTesting = nil
         afterDestinationExistenceCheckForTesting = nil
         beforeBuildTracksLoadForTesting = nil
@@ -388,6 +391,9 @@ enum JoinExporter {
     }
 
     /// Moves the system-temp export into a job-specific staging URL beside the destination.
+    ///
+    /// Staging URL is fixed before the move so mid-failure (cross-volume copy) can always clean
+    /// a partial staging file. Never leaves orphan staging on failure paths.
     private static func moveToDestinationStaging(
         from tempURL: URL,
         destination outputURL: URL,
@@ -395,17 +401,23 @@ enum JoinExporter {
     ) throws -> URL {
         let fm = FileManager.default
         let parent = outputURL.deletingLastPathComponent()
+        let stagingURL = parent.appendingPathComponent(
+            ".movies-connector-staging-\(jobID).mov"
+        )
         do {
             try fm.createDirectory(at: parent, withIntermediateDirectories: true)
-            let stagingURL = parent.appendingPathComponent(
-                ".movies-connector-staging-\(jobID).mov"
-            )
             if fm.fileExists(atPath: stagingURL.path) {
                 try fm.removeItem(at: stagingURL)
             }
-            try fm.moveItem(at: tempURL, to: stagingURL)
+            if let moveToStagingForTesting {
+                try moveToStagingForTesting(tempURL, stagingURL)
+            } else {
+                try fm.moveItem(at: tempURL, to: stagingURL)
+            }
             return stagingURL
         } catch {
+            // Cross-volume moveItem may leave a partial staging file; always clean it.
+            removeJobOutputIfPresent(stagingURL)
             throw mapExportError(error)
         }
     }
@@ -414,6 +426,10 @@ enum JoinExporter {
     ///
     /// Failure cleans only staging / an explicit backup created by this commit — never deletes
     /// `outputURL` merely because it exists (another process may own it).
+    ///
+    /// Important: `FileManager.replaceItemAt` returns the URL of the resulting item *after*
+    /// replacement (typically `outputURL`), **not** a backup URL. Backup location is derived
+    /// from `backupItemName` only; never delete the replace return value.
     private static func commitStaging(from stagingURL: URL, to outputURL: URL) throws {
         let fm = FileManager.default
         let destinationExisted = fm.fileExists(atPath: outputURL.path)
@@ -433,17 +449,20 @@ enum JoinExporter {
 
             if destinationExisted {
                 let backupName = ".movies-connector-backup-\(UUID().uuidString)"
-                let createdBackup = try fm.replaceItemAt(
+                let knownBackupURL = outputURL
+                    .deletingLastPathComponent()
+                    .appendingPathComponent(backupName)
+                // Track before replace so failure paths can restore/clean the known backup only.
+                backupURL = knownBackupURL
+                _ = try fm.replaceItemAt(
                     outputURL,
                     withItemAt: stagingURL,
                     backupItemName: backupName,
-                    options: []
+                    options: .withoutDeletingBackupItem
                 )
-                backupURL = createdBackup
-                if let createdBackup {
-                    try? fm.removeItem(at: createdBackup)
-                    backupURL = nil
-                }
+                // Delete only the explicitly constructed backup — never replaceItemAt's return value.
+                removeJobOutputIfPresent(knownBackupURL)
+                backupURL = nil
             } else {
                 try fm.moveItem(at: stagingURL, to: outputURL)
             }

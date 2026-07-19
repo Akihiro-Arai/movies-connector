@@ -398,6 +398,89 @@ final class JoinExporterTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: b.path))
     }
 
+    /// Regression: `replaceItemAt` returns the post-replacement item URL (usually `outputURL`),
+    /// not a backup. Deleting that return value wiped a successful final while reporting success.
+    func testReplaceExistingDestinationKeepsFinalOutputAndDropsOldContent() async throws {
+        let a = try await TestMovieFixtures.url(named: "compat_a.mov")
+        let b = try await TestMovieFixtures.url(named: "compat_b.mov")
+        let output = outputDirectory.appendingPathComponent("replace-existing.mov")
+        let oldMarker = "OLD-DESTINATION-CONTENT-MUST-NOT-SURVIVE"
+        try oldMarker.write(to: output, atomically: true, encoding: .utf8)
+        let expectedPayload = try Data(contentsOf: a)
+
+        // Exercise the real replaceItemAt path — no installExportForTesting hook.
+        JoinExporter.exportBodyForTesting = { tempURL in
+            try FileManager.default.copyItem(at: a, to: tempURL)
+        }
+
+        let result = try await JoinExporter.join(inputURLs: [a, b], outputURL: output)
+
+        XCTAssertEqual(result.outputURL, output)
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: output.path),
+            "Final output must survive replaceItemAt of an existing destination"
+        )
+        let finalData = try Data(contentsOf: output)
+        XCTAssertEqual(finalData, expectedPayload, "Final must contain the newly installed export")
+        XCTAssertNotEqual(
+            String(data: finalData, encoding: .utf8),
+            oldMarker,
+            "Old destination content must not remain after successful replace"
+        )
+
+        let leftovers = try FileManager.default.contentsOfDirectory(atPath: outputDirectory.path)
+        XCTAssertFalse(
+            leftovers.contains { $0.hasPrefix(".movies-connector-backup-") },
+            "Known backup must be removed after successful replace"
+        )
+        XCTAssertFalse(
+            leftovers.contains { $0.hasPrefix(".movies-connector-staging-") },
+            "Staging must not linger after successful commit"
+        )
+    }
+
+    /// Mid-failure during temp→staging (cross-volume copy) must clean partial staging and keep final.
+    func testStagingMoveFailureCleansPartialStagingAndPreservesFinal() async throws {
+        let a = try await TestMovieFixtures.url(named: "compat_a.mov")
+        let b = try await TestMovieFixtures.url(named: "compat_b.mov")
+        let output = outputDirectory.appendingPathComponent("preserve-on-staging-fail.mov")
+        let marker = "preexisting-final-must-remain"
+        try marker.write(to: output, atomically: true, encoding: .utf8)
+
+        JoinExporter.exportBodyForTesting = { tempURL in
+            try FileManager.default.copyItem(at: a, to: tempURL)
+        }
+        JoinExporter.moveToStagingForTesting = { _, stagingURL in
+            // Simulate a partial staging write then failure (cross-volume copy mid-abort).
+            try Data("partial-staging".utf8).write(to: stagingURL)
+            throw NSError(
+                domain: NSCocoaErrorDomain,
+                code: NSFileWriteUnknownError,
+                userInfo: [NSLocalizedDescriptionKey: "simulated mid-staging move failure"]
+            )
+        }
+
+        do {
+            _ = try await JoinExporter.join(inputURLs: [a, b], outputURL: output)
+            XCTFail("Expected staging move failure")
+        } catch JoinExporterError.exportFailed {
+            // expected
+        }
+
+        XCTAssertEqual(
+            try String(contentsOf: output, encoding: .utf8),
+            marker,
+            "Preexisting final must be preserved when staging move fails"
+        )
+        let leftovers = try FileManager.default.contentsOfDirectory(atPath: outputDirectory.path)
+        XCTAssertFalse(
+            leftovers.contains { $0.hasPrefix(".movies-connector-staging-") },
+            "Partial staging written before failure must be cleaned"
+        )
+        XCTAssertTrue(FileManager.default.fileExists(atPath: a.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: b.path))
+    }
+
     func testInstallFailurePreservesPreexistingDestination() async throws {
         let a = try await TestMovieFixtures.url(named: "compat_a.mov")
         let b = try await TestMovieFixtures.url(named: "compat_b.mov")
