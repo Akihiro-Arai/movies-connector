@@ -24,14 +24,17 @@ enum MovieContentTypes {
         "mov", "mp4", "m4v", "avi", "mpg", "mpeg",
     ]
 
+    /// Returns whether `url` should be accepted as a movie input.
+    ///
+    /// When `typeIdentifier` resolves to a known `UTType`, that result is
+    /// definitive (including known non-movie types). Extension fallback applies
+    /// only when the identifier is missing or cannot be resolved.
     static func isSupportedMovie(url: URL, typeIdentifier: String?) -> Bool {
         if let typeIdentifier, let type = UTType(typeIdentifier) {
             if type.conforms(to: .movie) {
                 return true
             }
-            if importTypes.contains(where: { type.conforms(to: $0) }) {
-                return true
-            }
+            return importTypes.contains(where: { type.conforms(to: $0) })
         }
 
         let ext = url.pathExtension.lowercased()

@@ -68,4 +68,21 @@ final class DroppedMovieURLFilterTests: XCTestCase {
             DroppedMovieURLFilter.Rejection(url: url, reason: .notAFile),
         ])
     }
+
+    func testRejectsPlainTextEvenWhenPathExtensionLooksLikeMovie() {
+        let disguised = URL(fileURLWithPath: "/Movies/notes.mov")
+
+        DroppedMovieURLFilter.resourceInfoForTesting = { _ in
+            DroppedMovieURLFilter.ResourceInfo(
+                isRegularFile: true,
+                typeIdentifier: "public.plain-text"
+            )
+        }
+
+        let result = DroppedMovieURLFilter.filter([disguised])
+        XCTAssertTrue(result.accepted.isEmpty)
+        XCTAssertEqual(result.rejected, [
+            DroppedMovieURLFilter.Rejection(url: disguised, reason: .unsupportedType),
+        ])
+    }
 }

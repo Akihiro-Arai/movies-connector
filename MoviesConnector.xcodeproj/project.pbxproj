@@ -25,6 +25,7 @@
 		A10000000000000000000013 /* DroppedMovieURLFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000013 /* DroppedMovieURLFilterTests.swift */; };
 		A10000000000000000000014 /* MovieSavePanelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000014 /* MovieSavePanelTests.swift */; };
 		A10000000000000000000015 /* UserSelectedURLAccessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000015 /* UserSelectedURLAccessTests.swift */; };
+		A10000000000000000000016 /* MovieContentTypesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* MovieContentTypesTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -56,6 +57,7 @@
 		A20000000000000000000013 /* DroppedMovieURLFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DroppedMovieURLFilterTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000014 /* MovieSavePanelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieSavePanelTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000015 /* UserSelectedURLAccessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSelectedURLAccessTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000016 /* MovieContentTypesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieContentTypesTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000009 /* MoviesConnector.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MoviesConnector.entitlements; sourceTree = "<group>"; };
 		A2000000000000000000000A /* MoviesConnector.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MoviesConnector.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2000000000000000000000B /* MoviesConnectorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MoviesConnectorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -109,6 +111,7 @@
 				A20000000000000000000013 /* DroppedMovieURLFilterTests.swift */,
 				A20000000000000000000014 /* MovieSavePanelTests.swift */,
 				A20000000000000000000015 /* UserSelectedURLAccessTests.swift */,
+				A20000000000000000000016 /* MovieContentTypesTests.swift */,
 			);
 			path = MoviesConnectorTests;
 			sourceTree = "<group>";
@@ -277,6 +280,7 @@
 				A10000000000000000000013 /* DroppedMovieURLFilterTests.swift in Sources */,
 				A10000000000000000000014 /* MovieSavePanelTests.swift in Sources */,
 				A10000000000000000000015 /* UserSelectedURLAccessTests.swift in Sources */,
+				A10000000000000000000016 /* MovieContentTypesTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
