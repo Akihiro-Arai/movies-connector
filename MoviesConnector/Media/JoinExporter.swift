@@ -3,6 +3,7 @@ import Foundation
 
 enum JoinExporterError: Error, LocalizedError, Equatable {
     case emptyInput
+    case outputCollidesWithInput
     case incompatible([String])
     case cannotCreateComposition
     case cannotCreateExportSession
@@ -14,6 +15,8 @@ enum JoinExporterError: Error, LocalizedError, Equatable {
         switch self {
         case .emptyInput:
             return "No input videos were provided."
+        case .outputCollidesWithInput:
+            return "Output destination must not be the same file as any input."
         case .incompatible(let reasons):
             return "Inputs are incompatible for lossless join: \(reasons.joined(separator: "; "))"
         case .cannotCreateComposition:
@@ -43,12 +46,32 @@ enum JoinExporter {
         var outputDuration: CMTime
     }
 
+    // MARK: - Test seams
+
+    /// When set, replaces the AV passthrough export body (writes must land at `tempURL`).
+    static var exportBodyForTesting: (@Sendable (URL) async throws -> Void)?
+    /// Invoked after export + duration validation, immediately before install.
+    static var beforeCommitForTesting: (@Sendable () async throws -> Void)?
+    /// When set, replaces the FileManager install step.
+    static var installExportForTesting: (@Sendable (URL, URL) throws -> Void)?
+    /// Observes the job-owned temp URL once it is allocated.
+    static var didCreateTempURLForTesting: (@Sendable (URL) -> Void)?
+
+    static func resetForTesting() {
+        exportBodyForTesting = nil
+        beforeCommitForTesting = nil
+        installExportForTesting = nil
+        didCreateTempURLForTesting = nil
+    }
+
     /// Joins `inputURLs` in exact caller order to `outputURL` using passthrough export.
     ///
     /// - Acquires inputs + output through `UserSelectedURLAccess.withPreparedAccess`
+    /// - Rejects output colliding with any input before preflight/write
     /// - Re-runs batch compatibility preflight before composition; refuses on failure
-    /// - Writes to a job-owned temp file, then replaces/moves into `outputURL` only on success
-    /// - On cancel/failure, removes only this job's partial temp output (never inputs / untouched destinations)
+    /// - Writes to a job-owned temp file, validates duration on temp, then installs into `outputURL`
+    /// - After a successful commit, never throws or awaits (cancel cannot unwind a finished write)
+    /// - On cancel/failure, removes only this job's partial temp / job-created destination
     /// - Reports monotonic progress in `0...1` via `progress`
     @discardableResult
     static func join(
@@ -61,12 +84,21 @@ enum JoinExporter {
         var scoped = inputURLs
         scoped.append(outputURL)
 
+        // Access-layer errors propagate unchanged; only the export body is normalized.
         return try await UserSelectedURLAccess.withPreparedAccess(to: scoped) {
-            try await joinWithPreparedAccess(
-                inputURLs: inputURLs,
-                outputURL: outputURL,
-                progress: progress
-            )
+            do {
+                return try await joinWithPreparedAccess(
+                    inputURLs: inputURLs,
+                    outputURL: outputURL,
+                    progress: progress
+                )
+            } catch let error as JoinExporterError {
+                throw error
+            } catch is CancellationError {
+                throw JoinExporterError.cancelled
+            } catch {
+                throw mapExportError(error)
+            }
         }
     }
 
@@ -76,6 +108,12 @@ enum JoinExporter {
         guard report.canExport else {
             throw JoinExporterError.incompatible(report.formattedReasons)
         }
+    }
+
+    /// Maps arbitrary errors (including nested AVFoundation / POSIX / Cocoa) to typed outcomes.
+    /// Exposed for unit tests that inject raw AVError / ENOSPC / cancellation.
+    static func mapErrorForTesting(_ error: Error) -> JoinExporterError {
+        mapExportError(error)
     }
 
     // MARK: - Prepared-access body
@@ -88,6 +126,9 @@ enum JoinExporter {
         reportProgress(0, to: progress, last: nil)
 
         try Task.checkCancellation()
+        try rejectCollidingOutput(outputURL: outputURL, inputURLs: inputURLs)
+
+        try Task.checkCancellation()
         try await preflightCompatibility(inputURLs: inputURLs)
         var lastProgress = reportProgress(0.02, to: progress, last: 0)
 
@@ -95,31 +136,35 @@ enum JoinExporter {
         let built = try await buildComposition(inputURLs: inputURLs)
         lastProgress = reportProgress(0.05, to: progress, last: lastProgress)
 
-        guard
-            let exportSession = AVAssetExportSession(
-                asset: built.composition,
-                presetName: AVAssetExportPresetPassthrough
-            )
-        else {
-            throw JoinExporterError.cannotCreateExportSession
-        }
-
-        exportSession.shouldOptimizeForNetworkUse = false
-
         let jobID = UUID().uuidString
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("movies-connector-job-\(jobID).mov")
+        didCreateTempURLForTesting?(tempURL)
         // Only this job's temp output is eligible for cleanup — never inputs or an unmanaged destination.
         defer { removeJobOutputIfPresent(tempURL) }
 
         let started = DispatchTime.now().uptimeNanoseconds
         do {
-            try await exportPassthrough(
-                session: exportSession,
-                to: tempURL,
-                progress: progress,
-                lastReported: lastProgress
-            )
+            if let exportBodyForTesting {
+                try await exportBodyForTesting(tempURL)
+                lastProgress = reportProgress(0.95, to: progress, last: lastProgress)
+            } else {
+                guard
+                    let exportSession = AVAssetExportSession(
+                        asset: built.composition,
+                        presetName: AVAssetExportPresetPassthrough
+                    )
+                else {
+                    throw JoinExporterError.cannotCreateExportSession
+                }
+                exportSession.shouldOptimizeForNetworkUse = false
+                try await exportPassthrough(
+                    session: exportSession,
+                    to: tempURL,
+                    progress: progress,
+                    lastReported: lastProgress
+                )
+            }
         } catch is CancellationError {
             throw JoinExporterError.cancelled
         } catch let error as JoinExporterError {
@@ -128,12 +173,28 @@ enum JoinExporter {
             throw mapExportError(error)
         }
 
+        // Validate duration on temp *before* commit so a load failure cannot leave a committed output.
+        try Task.checkCancellation()
+        let outputDuration: CMTime
+        do {
+            outputDuration = try await AVURLAsset(url: tempURL).load(.duration)
+        } catch is CancellationError {
+            throw JoinExporterError.cancelled
+        } catch {
+            throw mapExportError(error)
+        }
+
+        try Task.checkCancellation()
+        if let beforeCommitForTesting {
+            try await beforeCommitForTesting()
+            try Task.checkCancellation()
+        }
+
+        // Final cancellation check, then commit. No throw/await after a successful install.
         try Task.checkCancellation()
         try installExport(from: tempURL, to: outputURL)
 
-        let outputDuration = try await AVURLAsset(url: outputURL).load(.duration)
         reportProgress(1, to: progress, last: lastProgress)
-
         let elapsed = DispatchTime.now().uptimeNanoseconds - started
         return Result(
             outputURL: outputURL,
@@ -294,12 +355,16 @@ enum JoinExporter {
         }
     }
 
-    /// Atomically replace an existing destination, or move into place when absent.
-    /// A pre-existing destination is untouched until this successful install step.
+    /// Installs the temp export into `outputURL`.
+    /// Records whether the destination pre-existed; on failure, removes only a job-created destination
+    /// and never deletes a pre-existing destination.
     private static func installExport(from tempURL: URL, to outputURL: URL) throws {
         let fm = FileManager.default
+        let destinationExisted = fm.fileExists(atPath: outputURL.path)
         do {
-            if fm.fileExists(atPath: outputURL.path) {
+            if let installExportForTesting {
+                try installExportForTesting(tempURL, outputURL)
+            } else if destinationExisted {
                 _ = try fm.replaceItemAt(outputURL, withItemAt: tempURL)
             } else {
                 let parent = outputURL.deletingLastPathComponent()
@@ -307,8 +372,56 @@ enum JoinExporter {
                 try fm.moveItem(at: tempURL, to: outputURL)
             }
         } catch {
+            // Transactional cleanup: only remove a destination this job newly created.
+            if !destinationExisted, fm.fileExists(atPath: outputURL.path) {
+                try? fm.removeItem(at: outputURL)
+            }
             throw mapExportError(error)
         }
+    }
+
+    private static func rejectCollidingOutput(outputURL: URL, inputURLs: [URL]) throws {
+        for inputURL in inputURLs {
+            if urlsReferToSameItem(outputURL, inputURL) {
+                throw JoinExporterError.outputCollidesWithInput
+            }
+        }
+    }
+
+    /// Compares standardized paths, symlink-resolved paths, and file resource identifiers.
+    private static func urlsReferToSameItem(_ lhs: URL, _ rhs: URL) -> Bool {
+        let leftStandard = lhs.standardizedFileURL
+        let rightStandard = rhs.standardizedFileURL
+        if leftStandard.path == rightStandard.path {
+            return true
+        }
+
+        let leftResolved = leftStandard.resolvingSymlinksInPath()
+        let rightResolved = rightStandard.resolvingSymlinksInPath()
+        if leftResolved.path == rightResolved.path {
+            return true
+        }
+
+        let leftValues = try? leftStandard.resourceValues(forKeys: [.fileResourceIdentifierKey])
+        let rightValues = try? rightStandard.resourceValues(forKeys: [.fileResourceIdentifierKey])
+        if let leftID = leftValues?.fileResourceIdentifier,
+           let rightID = rightValues?.fileResourceIdentifier,
+           leftID.isEqual(rightID)
+        {
+            return true
+        }
+
+        // Also compare identifiers on symlink-resolved URLs when the unresolved pair missed.
+        let leftResolvedValues = try? leftResolved.resourceValues(forKeys: [.fileResourceIdentifierKey])
+        let rightResolvedValues = try? rightResolved.resourceValues(forKeys: [.fileResourceIdentifierKey])
+        if let leftID = leftResolvedValues?.fileResourceIdentifier,
+           let rightID = rightResolvedValues?.fileResourceIdentifier,
+           leftID.isEqual(rightID)
+        {
+            return true
+        }
+
+        return false
     }
 
     private static func removeJobOutputIfPresent(_ url: URL) {
@@ -346,6 +459,11 @@ enum JoinExporter {
 
     private static func isDiskFull(_ error: Error) -> Bool {
         let nsError = error as NSError
+        if nsError.domain == AVFoundationErrorDomain,
+           nsError.code == AVError.Code.diskFull.rawValue
+        {
+            return true
+        }
         if nsError.domain == NSPOSIXErrorDomain, nsError.code == Int(ENOSPC) {
             return true
         }

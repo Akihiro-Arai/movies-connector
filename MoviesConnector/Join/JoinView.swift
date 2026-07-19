@@ -22,7 +22,10 @@ struct JoinView: View {
         }
         .padding(24)
         .frame(minWidth: 640, minHeight: 420)
-        .onDrop(of: [UTType.fileURL], isTargeted: nil, perform: handleDrop(providers:))
+        .onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
+            guard !viewModel.isJoining else { return false }
+            return handleDrop(providers: providers)
+        }
     }
 
     private var header: some View {
@@ -43,13 +46,19 @@ struct JoinView: View {
             } else {
                 List {
                     ForEach(viewModel.items) { item in
-                        JoinQueueRow(item: item) {
+                        JoinQueueRow(
+                            item: item,
+                            isMutationEnabled: !viewModel.isJoining
+                        ) {
                             viewModel.removeItem(id: item.id)
                         }
                     }
-                    .onMove(perform: viewModel.moveItems)
+                    .onMove { source, destination in
+                        viewModel.moveItems(from: source, to: destination)
+                    }
                 }
                 .listStyle(.inset)
+                .disabled(viewModel.isJoining)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -92,6 +101,7 @@ struct JoinView: View {
             Button("Choose…") {
                 Task { await viewModel.chooseOutputDestination() }
             }
+            .disabled(viewModel.isJoining)
             .accessibilityLabel("Choose output destination")
         }
     }
@@ -169,6 +179,7 @@ struct JoinView: View {
 
 private struct JoinQueueRow: View {
     let item: JoinQueueItem
+    var isMutationEnabled: Bool = true
     let onDelete: () -> Void
 
     var body: some View {
@@ -197,6 +208,7 @@ private struct JoinQueueRow: View {
                 Image(systemName: "trash")
             }
             .buttonStyle(.borderless)
+            .disabled(!isMutationEnabled)
             .help("Remove from queue")
             .accessibilityLabel("Remove \(item.displayName)")
         }

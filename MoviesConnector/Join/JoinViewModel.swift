@@ -58,6 +58,7 @@ final class JoinViewModel: ObservableObject {
 
     /// Filters Finder drops through FileAccess policy, then enqueues accepted movies.
     func addDroppedURLs(_ urls: [URL]) {
+        guard !isJoining else { return }
         let result = DroppedMovieURLFilter.filter(urls)
         if !result.rejected.isEmpty {
             statusMessage = Self.dropRejectionMessage(result.rejected)
@@ -68,6 +69,7 @@ final class JoinViewModel: ObservableObject {
     }
 
     func addURLs(_ urls: [URL]) {
+        guard !isJoining else { return }
         guard !urls.isEmpty else { return }
         var appended: [JoinQueueItem] = []
         for url in urls {
@@ -83,17 +85,20 @@ final class JoinViewModel: ObservableObject {
     }
 
     func removeItem(id: UUID) {
+        guard !isJoining else { return }
         items.removeAll { $0.id == id }
         inspectionGenerations[id] = nil
         recomputeCompatibility()
     }
 
     func moveItems(from source: IndexSet, to destination: Int) {
+        guard !isJoining else { return }
         items.move(fromOffsets: source, toOffset: destination)
         recomputeCompatibility()
     }
 
     func chooseOutputDestination() async {
+        guard !isJoining else { return }
         let suggested = suggestedOutputName()
         if let url = await outputSelector.selectOutputDestination(suggestedName: suggested) {
             outputURL = url
@@ -102,6 +107,7 @@ final class JoinViewModel: ObservableObject {
     }
 
     func setOutputURLForTesting(_ url: URL?) {
+        guard !isJoining else { return }
         outputURL = url
     }
 
@@ -202,13 +208,21 @@ final class JoinViewModel: ObservableObject {
     }
 
     private func performJoin(outputURL: URL) async {
+        // Immutable snapshot for the running job — UI queue/output must not drift mid-export.
+        let snapshotInputs = orderedInputURLs
+        let snapshotInputCount = snapshotInputs.count
+        let snapshotOutput = outputURL
+
         isJoining = true
         joinProgress = 0
         statusMessage = nil
         defer { isJoining = false }
 
         do {
-            try await exporter.join(inputURLs: orderedInputURLs, outputURL: outputURL) { [weak self] value in
+            try await exporter.join(
+                inputURLs: snapshotInputs,
+                outputURL: snapshotOutput
+            ) { [weak self] value in
                 Task { @MainActor in
                     guard let self else { return }
                     if value >= self.joinProgress {
@@ -217,7 +231,8 @@ final class JoinViewModel: ObservableObject {
                 }
             }
             joinProgress = 1
-            statusMessage = "Joined \(items.count) video(s) → \(outputURL.lastPathComponent)"
+            statusMessage =
+                "Joined \(snapshotInputCount) video(s) → \(snapshotOutput.lastPathComponent)"
         } catch is CancellationError {
             statusMessage = JoinExporterError.cancelled.errorDescription
         } catch let error as JoinExporterError where error == .cancelled {

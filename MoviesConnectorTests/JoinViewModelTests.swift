@@ -223,6 +223,85 @@ final class JoinViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.statusMessage?.contains("Joined 2"), true)
     }
 
+    func testMutationsRejectedWhileJoiningAndSnapshotDrivesCompletion() async {
+        let a = URL(fileURLWithPath: "/tmp/a.mov")
+        let b = URL(fileURLWithPath: "/tmp/b.mov")
+        let c = URL(fileURLWithPath: "/tmp/c.mov")
+        let out = URL(fileURLWithPath: "/tmp/out.mov")
+        let inspector = MockAssetInspector(results: [
+            a: .success(Self.inspection(duration: 1, width: 320)),
+            b: .success(Self.inspection(duration: 2, width: 320)),
+            c: .success(Self.inspection(duration: 3, width: 320)),
+        ])
+        let gate = ExportGate()
+        let exporter = GatedMockExporter(gate: gate)
+        let viewModel = makeViewModel(inspector: inspector, exporter: exporter)
+
+        viewModel.addURLs([a, b])
+        await waitUntil(viewModel) { $0.items.allSatisfy { $0.compatibility == .compatible } }
+        viewModel.setOutputURLForTesting(out)
+
+        let joinTask = Task { await viewModel.join() }
+        await exporter.waitUntilJoinEntered()
+        XCTAssertTrue(viewModel.isJoining)
+        XCTAssertGreaterThan(viewModel.joinProgress, 0)
+
+        let itemCountBefore = viewModel.items.count
+        let firstID = viewModel.items[0].id
+        viewModel.addURLs([c])
+        viewModel.removeItem(id: firstID)
+        viewModel.moveItems(from: IndexSet(integer: 0), to: 1)
+        viewModel.setOutputURLForTesting(URL(fileURLWithPath: "/tmp/other.mov"))
+        viewModel.addDroppedURLs([c])
+
+        XCTAssertEqual(viewModel.items.count, itemCountBefore)
+        XCTAssertEqual(viewModel.orderedInputURLs, [a, b])
+        XCTAssertEqual(viewModel.outputURL, out)
+
+        var progressSamples: [Double] = []
+        for _ in 0..<20 {
+            progressSamples.append(viewModel.joinProgress)
+            await Task.yield()
+        }
+
+        gate.resume()
+        await joinTask.value
+
+        XCTAssertFalse(viewModel.isJoining)
+        XCTAssertEqual(viewModel.joinProgress, 1)
+        XCTAssertEqual(exporter.lastInputURLs, [a, b])
+        XCTAssertEqual(exporter.lastOutputURL, out)
+        XCTAssertEqual(viewModel.statusMessage, "Joined 2 video(s) → out.mov")
+        XCTAssertEqual(viewModel.orderedInputURLs, [a, b], "Queue must remain frozen during join")
+        for index in 1..<progressSamples.count {
+            XCTAssertGreaterThanOrEqual(progressSamples[index], progressSamples[index - 1])
+        }
+    }
+
+    func testCancelJoinSurfacesCancelledStatus() async {
+        let a = URL(fileURLWithPath: "/tmp/a.mov")
+        let out = URL(fileURLWithPath: "/tmp/out.mov")
+        let inspector = MockAssetInspector(results: [
+            a: .success(Self.inspection(duration: 1, width: 320)),
+        ])
+        let gate = ExportGate()
+        let exporter = GatedMockExporter(gate: gate, throwOnResume: CancellationError())
+        let viewModel = makeViewModel(inspector: inspector, exporter: exporter)
+
+        viewModel.addURLs([a])
+        await waitUntil(viewModel) { $0.items.allSatisfy { $0.compatibility == .compatible } }
+        viewModel.setOutputURLForTesting(out)
+
+        viewModel.startJoin()
+        await exporter.waitUntilJoinEntered()
+        XCTAssertTrue(viewModel.canCancelJoin)
+        viewModel.cancelJoin()
+        gate.resume()
+
+        await waitUntil(viewModel) { !$0.isJoining }
+        XCTAssertEqual(viewModel.statusMessage, JoinExporterError.cancelled.errorDescription)
+    }
+
     func testDurationFormatting() {
         XCTAssertEqual(DurationFormatting.string(from: nil), "—")
         XCTAssertEqual(DurationFormatting.string(from: 65), "1:05")
@@ -233,7 +312,7 @@ final class JoinViewModelTests: XCTestCase {
 
     private func makeViewModel(
         inspector: MockAssetInspector,
-        exporter: MockExporter = MockExporter()
+        exporter: any JoinExporting = MockExporter()
     ) -> JoinViewModel {
         JoinViewModel(
             inspector: inspector,
@@ -400,6 +479,97 @@ private final class MockExporter: JoinExporting, @unchecked Sendable {
     ) async throws {
         lastInputURLs = inputURLs
         lastOutputURL = outputURL
+        progress?(1)
+    }
+}
+
+private final class ExportGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuations: [CheckedContinuation<Void, Never>] = []
+    private var isOpen = false
+
+    func waitIfNeeded() async {
+        lock.lock()
+        if isOpen {
+            lock.unlock()
+            return
+        }
+        lock.unlock()
+
+        await withCheckedContinuation { continuation in
+            lock.lock()
+            if isOpen {
+                lock.unlock()
+                continuation.resume()
+            } else {
+                continuations.append(continuation)
+                lock.unlock()
+            }
+        }
+    }
+
+    func resume() {
+        lock.lock()
+        isOpen = true
+        let pending = continuations
+        continuations.removeAll()
+        lock.unlock()
+        for continuation in pending {
+            continuation.resume()
+        }
+    }
+}
+
+private final class GatedMockExporter: JoinExporting, @unchecked Sendable {
+    private let gate: ExportGate
+    private let throwOnResume: Error?
+    private let lock = NSLock()
+    private var entryWaiters: [CheckedContinuation<Void, Never>] = []
+    private(set) var joinEntered = false
+    private(set) var lastInputURLs: [URL]?
+    private(set) var lastOutputURL: URL?
+
+    init(gate: ExportGate, throwOnResume: Error? = nil) {
+        self.gate = gate
+        self.throwOnResume = throwOnResume
+    }
+
+    func waitUntilJoinEntered() async {
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            lock.lock()
+            if joinEntered {
+                lock.unlock()
+                continuation.resume()
+            } else {
+                entryWaiters.append(continuation)
+                lock.unlock()
+            }
+        }
+    }
+
+    func join(
+        inputURLs: [URL],
+        outputURL: URL,
+        progress: (@Sendable (Double) -> Void)?
+    ) async throws {
+        lastInputURLs = inputURLs
+        lastOutputURL = outputURL
+        progress?(0.2)
+
+        lock.lock()
+        joinEntered = true
+        let waiters = entryWaiters
+        entryWaiters.removeAll()
+        lock.unlock()
+        for waiter in waiters {
+            waiter.resume()
+        }
+
+        await gate.waitIfNeeded()
+        try Task.checkCancellation()
+        if let throwOnResume {
+            throw throwOnResume
+        }
         progress?(1)
     }
 }
