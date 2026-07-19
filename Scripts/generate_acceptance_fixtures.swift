@@ -12,6 +12,8 @@ import Foundation
 /// Presets:
 ///   practical — 10 clips, each = 4× seed (~1.2 GB when seed ≈ 29 MB). Default.
 ///   kpi20     — 10 clips, each ≈ 2 GB (≈67× 29 MB seed) → ~20 GB total.
+///               WARNING: still inherits the seed resolution (typically 720p). The acceptance
+///               harness treats this as `surrogate_only` — NOT DESIGN.md target-eligible 4K.
 
 enum AcceptanceFixtureGenerator {
     static func run() async {
@@ -41,6 +43,15 @@ enum AcceptanceFixtureGenerator {
         case "kpi20":
             if count == 0 { count = 10 }
             if repeats == 0 { repeats = 67 }
+            fputs(
+                """
+                WARNING: preset kpi20 only approximates total bytes (~20 GB). It repeats the
+                seed clip and is NOT 4K unless the seed itself is 4K. Acceptance KPI scoring
+                requires real 4K×10≈20GB; kpi20 output is workload_class=surrogate_only.
+
+                """,
+                stderr
+            )
         default:
             fputs("Unknown preset \(preset). Use practical or kpi20.\n", stderr)
             exit(2)
