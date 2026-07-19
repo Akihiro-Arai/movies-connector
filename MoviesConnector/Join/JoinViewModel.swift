@@ -54,14 +54,21 @@ final class JoinViewModel: ObservableObject {
     // MARK: - Mutations
 
     func addVideos() async {
+        guard !isJoining else { return }
+        let generationAtStart = joinGeneration
         let urls = await videoSelector.selectVideos()
+        // Join may have armed while the open panel was up — drop the stale selection.
+        guard !isJoining, joinGeneration == generationAtStart else { return }
         addURLs(urls)
     }
 
     /// Filters Finder drops through FileAccess policy, then enqueues accepted movies.
+    /// Security-scoped access is held while reading drop metadata under the sandbox.
     func addDroppedURLs(_ urls: [URL]) {
         guard !isJoining else { return }
-        let result = DroppedMovieURLFilter.filter(urls)
+        let result = SecurityScopedAccess.withAccess(to: urls) {
+            DroppedMovieURLFilter.filter(urls)
+        }
         if !result.rejected.isEmpty {
             statusMessage = Self.dropRejectionMessage(result.rejected)
         } else if !result.accepted.isEmpty {
@@ -241,20 +248,24 @@ final class JoinViewModel: ObservableObject {
                 outputURL: job.outputURL
             ) { [weak self] value in
                 Task { @MainActor in
-                    guard let self else { return }
+                    guard let self, self.joinGeneration == job.generation else { return }
                     if value >= self.joinProgress {
                         self.joinProgress = value
                     }
                 }
             }
+            guard joinGeneration == job.generation else { return }
             joinProgress = 1
             statusMessage =
                 "Joined \(job.inputCount) video(s) → \(job.outputURL.lastPathComponent)"
         } catch is CancellationError {
+            guard joinGeneration == job.generation else { return }
             statusMessage = JoinExporterError.cancelled.errorDescription
         } catch let error as JoinExporterError where error == .cancelled {
+            guard joinGeneration == job.generation else { return }
             statusMessage = error.errorDescription
         } catch {
+            guard joinGeneration == job.generation else { return }
             statusMessage = error.localizedDescription
         }
     }
