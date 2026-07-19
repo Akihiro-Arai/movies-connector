@@ -1,0 +1,17 @@
+# Xcode
+DerivedData/
+build/
+*.xcuserstate
+xcuserdata/
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Spike fixtures / local outputs (regenerate with Scripts/)
+Fixtures/*.mov
+/tmp/
+
+# macOS
+.DS_Store
