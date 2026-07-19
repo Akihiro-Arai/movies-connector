@@ -6,7 +6,9 @@ import XCTest
 /// Release-configuration speed harness that times the **production** `JoinExporter` path.
 ///
 /// Opt-in only (`ACCEPTANCE_BENCHMARK=1`) so normal `xcodebuild test` stays fast/green.
-/// Invoked by `Scripts/run_acceptance_benchmark.sh` with `-configuration Release`.
+/// Invoked by `Scripts/run_acceptance_benchmark.sh` with `-configuration Release` plus
+/// harness overrides (`ENABLE_TESTABILITY=YES`, test-host signing relaxations) so the
+/// Release `-O` `JoinExporter` module is testable and the XCTest host can load.
 ///
 /// Environment:
 ///   ACCEPTANCE_BENCHMARK=1

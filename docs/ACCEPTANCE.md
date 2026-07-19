@@ -65,10 +65,19 @@ Harness measures the **Release** build of the production engine (`JoinExporter.j
 
 | Piece | Role |
 | --- | --- |
-| `Scripts/run_acceptance_benchmark.sh` | `xcodebuild -configuration Release` → `AcceptanceProductionBenchmarkTests` |
+| `Scripts/run_acceptance_benchmark.sh` | `xcodebuild -configuration Release` + harness overrides → `AcceptanceProductionBenchmarkTests` |
 | `MoviesConnectorTests/AcceptanceProductionBenchmarkTests.swift` | Warm-up + 5 interleaved copy/`JoinExporter.join`, eligibility gate, full signature validation, `getrusage` CPU |
 | `Scripts/run_acceptance_benchmark.swift` | Support only (`--host-info` / `--copy` / `--validate` / `--eligibility`) — **no KPI join** |
 | `Scripts/generate_acceptance_fixtures.swift` | Build N compatible clips from a seed via passthrough |
+
+Release shipping builds omit `-enable-testing` and keep hardened runtime. The harness script applies **only** to its DerivedData path:
+
+- `ENABLE_TESTABILITY=YES` — `-enable-testing` so `@testable import MoviesConnector` can call optimized Release `JoinExporter`
+- `CODE_SIGN_INJECT_BASE_ENTITLEMENTS=YES` + `ENABLE_HARDENED_RUNTIME=NO` — ad-hoc signed XCTest host can load the test bundle (without these, Release `xcodebuild test` hangs / fails Team ID checks)
+- `CODE_SIGN_ENTITLEMENTS=MoviesConnector/MoviesConnectorAcceptanceHarness.entitlements` — sandbox plus absolute-path read-write exception so fixture/work I/O works (shipping Release keeps `MoviesConnector.entitlements`)
+- `TEST_RUNNER_ACCEPTANCE_BENCHMARK=1` (+ absolute fixture/work dirs) — xcodebuild forwards only `TEST_RUNNER_*` into the macOS test host (becomes `ACCEPTANCE_*` inside the test)
+
+Do **not** drop those overrides when invoking the Release measurement by hand. Compiler optimization remains Release (`-O` / wholemodule). Prefer the shell wrapper; it also fails if `results.txt` is missing (skip-as-success).
 
 ### Target eligibility (required before KPI yes/no)
 
@@ -123,7 +132,7 @@ Record Mac model/SoC, logical cores, macOS, source/output volumes, codecs/sizes,
 
 ### Method (matches issue #7)
 
-1. Build/run with `xcodebuild -configuration Release` (no debugger) via the shell wrapper.
+1. Build/run with `xcodebuild -configuration Release` plus harness overrides from `Scripts/run_acceptance_benchmark.sh` (no debugger).
 2. Time production `JoinExporter.join` (security-scope mocked only for local fixture paths; staging + passthrough path is production).
 3. Warm-up copy + join (discarded from medians).
 4. ≥5 measured trials, interleaved **copy then join** of the **same total source bytes** to the same destination volume.
@@ -135,7 +144,7 @@ Record Mac model/SoC, logical cores, macOS, source/output volumes, codecs/sizes,
 
 > **Surrogate only — not a 20GB 4K KPI result.**  
 > `workload_class=surrogate_only` → `kpi_1_25x_met=n/a`, `cpu_under_1_core=n/a`.  
-> Earlier independent-harness timings are retained below as historical surrogate evidence; re-run `Scripts/run_acceptance_benchmark.sh` on this branch to refresh numbers against Release `JoinExporter`. Tracking: [#14](https://github.com/Akihiro-Arai/movies-connector/issues/14).
+> Measured via `Scripts/run_acceptance_benchmark.sh` → Release `-O` production `JoinExporter.join` (`engine=JoinExporter.join`). Tracking: [#14](https://github.com/Akihiro-Arai/movies-connector/issues/14).
 
 **Host**
 
@@ -148,6 +157,7 @@ Record Mac model/SoC, logical cores, macOS, source/output volumes, codecs/sizes,
 | macOS | 26.5.1 (25F80) |
 | Volumes | source + dest: Macintosh HD (local SSD) |
 | Target eligible? | **no** (720p, 1.22 GB ≠ 4K×10≈20GB) |
+| Engine | `JoinExporter.join` (Release, `-enable-testing` harness override) |
 
 **Fixture set (`practical`)**
 
@@ -158,43 +168,31 @@ Record Mac model/SoC, logical cores, macOS, source/output volumes, codecs/sizes,
 | Total source bytes | 1,223,641,170 (≈ 1.22 GB) |
 | Not | 4K × 10 ≈ 20 GB (deferred — see below) |
 
-**Wall-clock (interleaved, post warm-up) — historical surrogate**
+**Wall-clock (interleaved, post warm-up) — Release `JoinExporter`**
 
-| Trial | Copy (s) | Join (s) |
-| --- | --- | --- |
-| 1 | 0.508175 | 1.672660 |
-| 2 | 0.455501 | 1.619727 |
-| 3 | 0.449672 | 1.268424 |
-| 4 | 0.399317 | 0.513212 |
-| 5 | 0.423304 | 1.440560 |
-| **Median** | **0.449672** | **1.440560** |
+| Trial | Copy (s) | Join (s) | Avg cores |
+| --- | --- | --- | --- |
+| 1 | 0.432522 | 0.442436 | 1.861 |
+| 2 | 0.359296 | 0.445874 | 1.826 |
+| 3 | 0.347977 | 0.461343 | 1.766 |
+| 4 | 0.348621 | 0.460444 | 1.790 |
+| 5 | 0.416546 | 0.470651 | 1.809 |
+| **Median / mean** | **0.359296** | **0.460444** | **1.811** |
 
 | Metric | Target (eligible only) | Observed on surrogate | KPI scored? |
 | --- | --- | --- | --- |
-| Median join / median copy | ≤ 1.25× | **3.204×** | **n/a** (`surrogate_only`) |
+| Median join / median copy | ≤ 1.25× | **1.282×** | **n/a** (`surrogate_only`) |
+| Avg process CPU | < 1 logical core | **≈ 1.81** | **n/a** (`surrogate_only`) |
 | Output duration | within 1 frame of sum | δ = 0 (600.0 s) | yes (correctness) |
 | Codec / topology | match all inputs | `avc1` 1280×720 | yes (correctness) |
-
-**CPU (`time -l` on prior harness, 5 join trials after warm-up) — historical surrogate**
-
-| Trial | real | user | sys | (user+sys)/real |
-| --- | --- | --- | --- |
-| 1 | 0.39 | 0.37 | 0.47 | 2.15 |
-| 2 | 0.37 | 0.37 | 0.46 | 2.24 |
-| 3 | 0.37 | 0.37 | 0.47 | 2.27 |
-| 4 | 0.41 | 0.37 | 0.47 | 2.05 |
-| 5 | 0.40 | 0.37 | 0.47 | 2.10 |
-| **Mean** | | | | **≈ 2.16 cores** |
-
-| Metric | Target (eligible only) | Observed on surrogate | KPI scored? |
-| --- | --- | --- | --- |
-| Avg process CPU | < 1 logical core | **≈ 2.16** | **n/a** (`surrogate_only`) |
 
 Commands:
 
 ```text
 swift Scripts/generate_acceptance_fixtures.swift Fixtures/acceptance --preset practical
 Scripts/run_acceptance_benchmark.sh Fixtures/acceptance /tmp/movies-connector-acceptance
+# → xcodebuild -configuration Release ENABLE_TESTABILITY=YES … + harness entitlements
+# → MoviesConnectorTests/AcceptanceProductionBenchmarkTests
 ```
 
 ### Interpretation / follow-ups

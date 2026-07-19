@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Harness-only entitlements for Scripts/run_acceptance_benchmark.sh.
+	     Shipping Release uses MoviesConnector.entitlements (no absolute-path write exception). -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<!-- XCTest injects read-only `/`; harness also needs write for work dir + results.txt. -->
+	<key>com.apple.security.temporary-exception.files.absolute-path.read-write</key>
+	<array>
+		<string>/</string>
+	</array>
+</dict>
+</plist>
