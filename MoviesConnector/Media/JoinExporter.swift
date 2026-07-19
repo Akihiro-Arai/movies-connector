@@ -126,32 +126,11 @@ enum JoinExporter {
         return Result(outputURL: outputURL, elapsedNanoseconds: elapsed, inputCount: inputURLs.count)
     }
 
+    /// Immediate preflight before export — reuses `AssetInspector` row-addressable results.
     static func preflightCompatibility(inputURLs: [URL]) async throws {
-        var signatures: [CompatibilitySignature] = []
-        for url in inputURLs {
-            signatures.append(try await AssetInspector.makeSignature(for: url))
-        }
-
-        guard let reference = signatures.first else { return }
-
-        if reference.hasUnsupportedTracks || reference.videoTrackCount != 1 || reference.audioTrackCount > 1 {
-            throw JoinExporterError.incompatible([
-                CompatibilityMismatch.unsupportedTopology(
-                    "first asset must have exactly 1 video track, at most 1 audio track, and no unsupported tracks"
-                ).description,
-            ])
-        }
-
-        var reasons: [String] = []
-        for (index, signature) in signatures.dropFirst().enumerated() {
-            let mismatches = CompatibilityComparer.mismatches(between: reference, and: signature)
-            for mismatch in mismatches {
-                reasons.append("file[\(index + 1)]: \(mismatch.description)")
-            }
-        }
-
-        if !reasons.isEmpty {
-            throw JoinExporterError.incompatible(reasons)
+        let report = await AssetInspector.preflight(urls: inputURLs)
+        guard report.canExport else {
+            throw JoinExporterError.incompatible(report.formattedReasons)
         }
     }
 
