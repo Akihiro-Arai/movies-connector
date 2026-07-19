@@ -177,26 +177,29 @@ final class JoinViewModelIntegrationTests: XCTestCase {
         await viewModel.chooseOutputDestination()
         XCTAssertTrue(viewModel.canJoin)
 
-        final class CancelBox: @unchecked Sendable {
-            var cancel: (@Sendable () -> Void)?
-        }
-        let box = CancelBox()
-        box.cancel = {
-            Task { @MainActor in
-                viewModel.cancelJoin()
-            }
-        }
-
-        // Exercise cancel on the production exporter commit boundary, then retry for real.
+        // Async gate at the production commit boundary: prove cancelJoin() cancels the
+        // in-flight exporter task. The hook must not throw CancellationError itself.
+        let gate = CommitCancelGate()
         JoinExporter.exportBodyForTesting = { tempURL in
             try FileManager.default.copyItem(at: a, to: tempURL)
         }
         JoinExporter.beforeCommitForTesting = {
-            box.cancel?()
-            throw CancellationError()
+            await gate.markArrivedAndWaitForRelease()
+            XCTAssertTrue(
+                Task.isCancelled,
+                "cancelJoin() must cancel the production exporter task before commit resumes"
+            )
+            // Return normally — JoinExporter's Task.checkCancellation() must fail next.
         }
 
         viewModel.startJoin()
+        await gate.waitUntilArrived(timeout: 30)
+        XCTAssertTrue(viewModel.isJoining, "Join must be in-flight on the production exporter path")
+        XCTAssertTrue(viewModel.canCancelJoin)
+
+        viewModel.cancelJoin()
+        gate.release()
+
         await waitUntil(viewModel, timeout: 30) { !$0.isJoining }
 
         XCTAssertEqual(viewModel.statusMessage, JoinExporterError.cancelled.errorDescription)
@@ -282,6 +285,85 @@ final class JoinViewModelIntegrationTests: XCTestCase {
             lock.lock()
             stored.removeAll()
             lock.unlock()
+        }
+    }
+
+    /// Gate used by cancel→retry: exporter signals commit-boundary arrival, test calls
+    /// `cancelJoin()`, then releases so production `Task.checkCancellation()` can fail.
+    private final class CommitCancelGate: @unchecked Sendable {
+        private let lock = NSLock()
+        private var arrived = false
+        private var released = false
+        private var arrivalWaiters: [CheckedContinuation<Void, Never>] = []
+        private var releaseWaiters: [CheckedContinuation<Void, Never>] = []
+
+        func markArrivedAndWaitForRelease() async {
+            lock.lock()
+            arrived = true
+            let pendingArrival = arrivalWaiters
+            arrivalWaiters.removeAll()
+            let alreadyReleased = released
+            lock.unlock()
+            for waiter in pendingArrival {
+                waiter.resume()
+            }
+            if alreadyReleased { return }
+
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                lock.lock()
+                if released {
+                    lock.unlock()
+                    continuation.resume()
+                } else {
+                    releaseWaiters.append(continuation)
+                    lock.unlock()
+                }
+            }
+        }
+
+        func waitUntilArrived(timeout: TimeInterval) async {
+            lock.lock()
+            if arrived {
+                lock.unlock()
+                return
+            }
+            lock.unlock()
+
+            await withTaskGroup(of: Bool.self) { group in
+                group.addTask {
+                    await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                        self.lock.lock()
+                        if self.arrived {
+                            self.lock.unlock()
+                            continuation.resume()
+                        } else {
+                            self.arrivalWaiters.append(continuation)
+                            self.lock.unlock()
+                        }
+                    }
+                    return true
+                }
+                group.addTask {
+                    try? await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                    return false
+                }
+                let first = await group.next() ?? false
+                group.cancelAll()
+                if !first {
+                    XCTFail("Exporter did not reach commit boundary before timeout (\(timeout)s)")
+                }
+            }
+        }
+
+        func release() {
+            lock.lock()
+            released = true
+            let pending = releaseWaiters
+            releaseWaiters.removeAll()
+            lock.unlock()
+            for waiter in pending {
+                waiter.resume()
+            }
         }
     }
 }
