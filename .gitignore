@@ -9,9 +9,11 @@ xcuserdata/
 *.dSYM.zip
 *.dSYM
 
-# Spike fixtures / local outputs (regenerate with Scripts/)
+# Spike / acceptance fixtures (regenerate with Scripts/)
 Fixtures/*.mov
+Fixtures/acceptance/
 /tmp/
+/tmp/movies-connector-acceptance/
 
 # macOS
 .DS_Store

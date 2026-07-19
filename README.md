@@ -36,3 +36,12 @@ Passthrough join validation and `CompatibilitySignature` rules:
 
 - [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)
 - [docs/SPIKE.md](docs/SPIKE.md)
+
+## Acceptance (#7)
+
+Release-readiness checks (correctness, sandbox, failure cleanup, speed KPI):
+
+- [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)
+- Harness: `Scripts/run_acceptance_benchmark.sh` (Release `JoinExporter`; surrogates report `n/a`, not KPI yes/no)
+- Fixtures: `Scripts/generate_acceptance_fixtures.swift`
+- Blocking follow-ups: [#14](https://github.com/Akihiro-Arai/movies-connector/issues/14) (4K×10≈20GB), [#16](https://github.com/Akihiro-Arai/movies-connector/issues/16) (iCloud), [#17](https://github.com/Akihiro-Arai/movies-connector/issues/17) (long media)
