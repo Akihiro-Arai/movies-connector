@@ -112,6 +112,47 @@ final class UserSelectedURLAccessTests: XCTestCase {
         XCTAssertEqual(value, 11)
     }
 
+    func testMoviesDirectoryDoesNotRequireSecurityScopedAccess() {
+        let movies = FileManager.default.temporaryDirectory
+            .appendingPathComponent("FakeMovies-\(UUID().uuidString)", isDirectory: true)
+        DefaultOutputDirectory.moviesDirectoryForTesting = movies
+        defer { DefaultOutputDirectory.resetForTesting() }
+
+        let output = movies
+            .appendingPathComponent("Movies Connector", isDirectory: true)
+            .appendingPathComponent("joined.mov")
+        XCTAssertFalse(UserSelectedURLAccess.requiresSecurityScopedAccess(for: output))
+    }
+
+    func testAppManagedDropCopyDoesNotRequireSecurityScopedAccess() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MoviesConnectorDrops", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent("IMG_drop-\(UUID().uuidString).MOV")
+        try Data([0x00, 0x01]).write(to: url)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        XCTAssertTrue(UserSelectedURLAccess.isAppManagedFileURL(url))
+        XCTAssertFalse(UserSelectedURLAccess.requiresSecurityScopedAccess(for: url))
+
+        SecurityScopedAccess.startAccessingForTesting = { _ in false }
+        SecurityScopedAccess.stopAccessingForTesting = { _ in }
+        UserSelectedURLAccess.ubiquitousItemStateForTesting = { _ in
+            UbiquitousItemState(
+                isUbiquitous: false,
+                downloadingStatus: nil,
+                isDownloading: false,
+                downloadingErrorDescription: nil,
+                isReadable: true
+            )
+        }
+
+        let value = try await UserSelectedURLAccess.withPreparedAccess(to: url) {
+            42
+        }
+        XCTAssertEqual(value, 42)
+    }
+
     func testPreparedAccessRunsBodyForLocalNonUbiquitousURLsWithoutStartingDownload() async throws {
         let url = URL(fileURLWithPath: "/tmp/movies-connector-local.mov")
         var downloadStarts = 0

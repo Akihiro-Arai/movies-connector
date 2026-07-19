@@ -4,6 +4,15 @@ macOS app that joins video files in a specified order using AVFoundation passthr
 
 See [DESIGN.md](DESIGN.md) for v1 scope and architecture.
 
+## Adding videos
+
+Supported input routes:
+
+- **Finder** drag-and-drop onto the queue
+- **Add Videos** (open panel; multi-select)
+
+Direct drag-and-drop from the Photos app is not supported. Export the movie from Photos to a Finder folder first, then drop it from Finder or choose it with Add Videos.
+
 ## Requirements
 
 - macOS 14+

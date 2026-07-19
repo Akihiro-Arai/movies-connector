@@ -1,9 +1,10 @@
 import Foundation
 import UniformTypeIdentifiers
 
-/// Shared content-type policy for open/save panels and Finder drops.
+/// Shared content-type policy for open/save panels and post-drop URL filtering.
+/// Drop *acceptance* is Finder `public.file-url` only (#26); these types validate resolved files.
 enum MovieContentTypes {
-    /// Types accepted as join inputs (open panel + drop filter).
+    /// Types accepted as join inputs (open panel + resolved-URL filter).
     static let importTypes: [UTType] = [
         .movie,
         .quickTimeMovie,

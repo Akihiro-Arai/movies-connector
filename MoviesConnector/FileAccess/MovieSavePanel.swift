@@ -19,8 +19,9 @@ enum MovieSavePanel {
     /// Presents a save panel and returns a user-approved `.mov` URL, or `nil` if cancelled.
     static func present(
         suggestedName: String = "Joined",
-        message: String = "Choose output movie destination",
-        prompt: String = "Select"
+        directoryURL: URL? = nil,
+        message: String? = nil,
+        prompt: String? = nil
     ) -> URL? {
         if let presentForTesting {
             let raw = presentForTesting(suggestedName)
@@ -29,6 +30,7 @@ enum MovieSavePanel {
 
         let panel = makePanel(
             suggestedName: suggestedName,
+            directoryURL: directoryURL,
             message: message,
             prompt: prompt
         )
@@ -40,8 +42,9 @@ enum MovieSavePanel {
     /// Builds the configured panel (exposed for configuration tests).
     static func makePanel(
         suggestedName: String = "Joined",
-        message: String = "Choose output movie destination",
-        prompt: String = "Select"
+        directoryURL: URL? = nil,
+        message: String? = nil,
+        prompt: String? = nil
     ) -> NSSavePanel {
         let panel = NSSavePanel()
         panel.canCreateDirectories = true
@@ -49,9 +52,14 @@ enum MovieSavePanel {
         panel.allowsOtherFileTypes = false
         panel.isExtensionHidden = false
         panel.nameFieldStringValue = suggestedFileName(from: suggestedName)
-        panel.message = message
-        panel.prompt = prompt
-        panel.title = "Export Movie"
+        panel.message = message ?? L10n.string("panel.save.message")
+        panel.prompt = prompt ?? L10n.string("panel.save.prompt")
+        panel.title = L10n.string("panel.save.title")
+        if let directoryURL {
+            panel.directoryURL = directoryURL
+        } else if let managed = DefaultOutputDirectory.managedDirectoryURL() {
+            panel.directoryURL = managed
+        }
         return panel
     }
 

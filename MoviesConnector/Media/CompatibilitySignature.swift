@@ -13,9 +13,11 @@ struct CompatibilitySignature: Equatable, Hashable, Sendable {
 
     /// Number of video tracks that would be inserted into the composition (v1 expects exactly 1).
     var videoTrackCount: Int
-    /// Number of audio tracks present (v1 allows 0 or 1 only; `> 1` is unsupported topology).
+    /// Audio tracks used for passthrough (0 or 1). Extra audio tracks are ignored at export
+    /// and normalized away when the signature is built.
     var audioTrackCount: Int
-    /// True when any non video/audio track exists (timecode, subtitle, metadata media, etc.).
+    /// True when a non-ignorable non-AV track exists. Metadata / timecode / text side-cars
+    /// from Photos / iPhone are ignored and do not set this flag.
     var hasUnsupportedTracks: Bool
 
     // MARK: - Video
@@ -125,37 +127,118 @@ enum CompatibilityMismatch: Equatable, Sendable, CustomStringConvertible {
     case audioChannelCount(Int?, Int?)
     case audioFormatFlags(UInt32?, UInt32?)
 
+    /// Stable English text for logs, exporter errors, and unit tests.
     var description: String {
+        localizedDescription(locale: Locale(identifier: "en"))
+    }
+
+    /// Presentation-time localization (#22).
+    var localizedDescription: String {
+        localizedDescription(locale: L10n.locale)
+    }
+
+    func localizedDescription(locale: Locale) -> String {
         switch self {
         case .unsupportedTopology(let detail):
-            return "Unsupported track layout: \(detail)"
+            return Self.localizedTopologyDetail(detail, locale: locale)
         case .videoTrackCount(let a, let b):
-            return "Video track count mismatch (\(a) vs \(b))"
+            return L10n.string(
+                "compat.video_track_count \(Int64(a)) \(Int64(b))",
+                locale: locale
+            )
         case .audioTrackCount(let a, let b):
-            return "Audio track count mismatch (\(a) vs \(b))"
+            return L10n.string(
+                "compat.audio_track_count \(Int64(a)) \(Int64(b))",
+                locale: locale
+            )
         case .videoCodec(let a, let b):
-            return "Video codec mismatch (\(Self.display(a)) vs \(Self.display(b)))"
+            return L10n.string(
+                "compat.video_codec \(Self.display(a)) \(Self.display(b))",
+                locale: locale
+            )
         case .videoDisplaySize(let a, let b):
-            return "Video display size mismatch (\(a) vs \(b))"
+            return L10n.string("compat.video_display_size \(a) \(b)", locale: locale)
         case .videoPreferredTransform:
-            return "Video preferred transform mismatch"
+            return L10n.string("compat.video_transform", locale: locale)
         case .videoFrameDuration(let a, let b):
-            return "Video frame duration mismatch (\(Self.display(a)) vs \(Self.display(b)))"
+            return L10n.string(
+                "compat.video_frame_duration \(Self.display(a)) \(Self.display(b))",
+                locale: locale
+            )
         case .videoTimescale(let a, let b):
-            return "Video timescale mismatch (\(Self.display(a)) vs \(Self.display(b)))"
+            return L10n.string(
+                "compat.video_timescale \(Self.display(a)) \(Self.display(b))",
+                locale: locale
+            )
         case .audioCodec(let a, let b):
-            return "Audio codec mismatch (\(Self.display(a)) vs \(Self.display(b)))"
+            return L10n.string(
+                "compat.audio_codec \(Self.display(a)) \(Self.display(b))",
+                locale: locale
+            )
         case .audioSampleRate(let a, let b):
-            return "Audio sample rate mismatch (\(Self.display(a)) vs \(Self.display(b)))"
+            return L10n.string(
+                "compat.audio_sample_rate \(Self.display(a)) \(Self.display(b))",
+                locale: locale
+            )
         case .audioChannelCount(let a, let b):
-            return "Audio channel count mismatch (\(Self.display(a)) vs \(Self.display(b)))"
+            return L10n.string(
+                "compat.audio_channel_count \(Self.display(a)) \(Self.display(b))",
+                locale: locale
+            )
         case .audioFormatFlags(let a, let b):
-            return "Audio format flags mismatch (\(Self.display(a)) vs \(Self.display(b)))"
+            return L10n.string(
+                "compat.audio_format_flags \(Self.display(a)) \(Self.display(b))",
+                locale: locale
+            )
         }
     }
 
     private static func display<T>(_ value: T?) -> String {
         value.map { "\($0)" } ?? "nil"
+    }
+
+    /// Maps stable English topology machine strings to catalog entries (#22).
+    private static func localizedTopologyDetail(_ detail: String, locale: Locale) -> String {
+        switch detail {
+        case "reference asset has unsupported tracks":
+            return L10n.string("compat.reference_unsupported_tracks", locale: locale)
+        case "candidate asset has unsupported tracks":
+            return L10n.string("compat.candidate_unsupported_tracks", locale: locale)
+        default:
+            break
+        }
+        if let count = parseFoundCount(
+            prefix: "reference must have exactly 1 video track (found ",
+            detail: detail
+        ) {
+            return L10n.string("compat.reference_video_track_count \(Int64(count))", locale: locale)
+        }
+        if let count = parseFoundCount(
+            prefix: "candidate must have exactly 1 video track (found ",
+            detail: detail
+        ) {
+            return L10n.string("compat.candidate_video_track_count \(Int64(count))", locale: locale)
+        }
+        if let count = parseFoundCount(
+            prefix: "reference must have at most 1 audio track (found ",
+            detail: detail
+        ) {
+            return L10n.string("compat.reference_audio_track_count \(Int64(count))", locale: locale)
+        }
+        if let count = parseFoundCount(
+            prefix: "candidate must have at most 1 audio track (found ",
+            detail: detail
+        ) {
+            return L10n.string("compat.candidate_audio_track_count \(Int64(count))", locale: locale)
+        }
+        return L10n.string("compat.topology \(detail)", locale: locale)
+    }
+
+    private static func parseFoundCount(prefix: String, detail: String) -> Int? {
+        guard detail.hasPrefix(prefix), detail.hasSuffix(")") else { return nil }
+        let start = detail.index(detail.startIndex, offsetBy: prefix.count)
+        let end = detail.index(before: detail.endIndex)
+        return Int(detail[start..<end])
     }
 }
 

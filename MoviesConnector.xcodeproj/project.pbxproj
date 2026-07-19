@@ -12,6 +12,7 @@
 		A10000000000000000000003 /* JoinViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* JoinViewModel.swift */; };
 		A10000000000000000000017 /* JoinProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000017 /* JoinProtocols.swift */; };
 		A10000000000000000000018 /* JoinQueueItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000018 /* JoinQueueItem.swift */; };
+		A1000000000000000000002B /* JoinQueueEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002B /* JoinQueueEntry.swift */; };
 		A10000000000000000000004 /* CompatibilitySignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* CompatibilitySignature.swift */; };
 		A10000000000000000000005 /* AssetInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* AssetInspector.swift */; };
 		A10000000000000000000006 /* JoinExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* JoinExporter.swift */; };
@@ -35,6 +36,17 @@
 		A1000000000000000000001D /* JoinViewModelIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001D /* JoinViewModelIntegrationTests.swift */; };
 		A1000000000000000000001E /* AcceptanceResilienceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001E /* AcceptanceResilienceTests.swift */; };
 		A1000000000000000000001F /* AcceptanceProductionBenchmarkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001F /* AcceptanceProductionBenchmarkTests.swift */; };
+		A10000000000000000000020 /* MovieDropItemLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000020 /* MovieDropItemLoader.swift */; };
+		A10000000000000000000021 /* MovieDropItemLoaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000021 /* MovieDropItemLoaderTests.swift */; };
+		A10000000000000000000022 /* DropDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000022 /* DropDiagnostics.swift */; };
+		A10000000000000000000023 /* DefaultOutputDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000023 /* DefaultOutputDirectory.swift */; };
+		A10000000000000000000024 /* MoviesOutputAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000024 /* MoviesOutputAccess.swift */; };
+		A10000000000000000000025 /* DefaultOutputDirectoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000025 /* DefaultOutputDirectoryTests.swift */; };
+		A10000000000000000000026 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000026 /* AppSettings.swift */; };
+		A10000000000000000000027 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000027 /* L10n.swift */; };
+		A10000000000000000000028 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* SettingsView.swift */; };
+		A10000000000000000000029 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* Localizable.xcstrings */; };
+		A1000000000000000000002A /* AppLanguageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002A /* AppLanguageTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -53,6 +65,7 @@
 		A20000000000000000000003 /* JoinViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinViewModel.swift; sourceTree = "<group>"; };
 		A20000000000000000000017 /* JoinProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinProtocols.swift; sourceTree = "<group>"; };
 		A20000000000000000000018 /* JoinQueueItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinQueueItem.swift; sourceTree = "<group>"; };
+		A2000000000000000000002B /* JoinQueueEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinQueueEntry.swift; sourceTree = "<group>"; };
 		A20000000000000000000004 /* CompatibilitySignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompatibilitySignature.swift; sourceTree = "<group>"; };
 		A20000000000000000000005 /* AssetInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetInspector.swift; sourceTree = "<group>"; };
 		A20000000000000000000006 /* JoinExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinExporter.swift; sourceTree = "<group>"; };
@@ -76,6 +89,17 @@
 		A2000000000000000000001D /* JoinViewModelIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinViewModelIntegrationTests.swift; sourceTree = "<group>"; };
 		A2000000000000000000001E /* AcceptanceResilienceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcceptanceResilienceTests.swift; sourceTree = "<group>"; };
 		A2000000000000000000001F /* AcceptanceProductionBenchmarkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AcceptanceProductionBenchmarkTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000020 /* MovieDropItemLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieDropItemLoader.swift; sourceTree = "<group>"; };
+		A20000000000000000000021 /* MovieDropItemLoaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieDropItemLoaderTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000022 /* DropDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DropDiagnostics.swift; sourceTree = "<group>"; };
+		A20000000000000000000023 /* DefaultOutputDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultOutputDirectory.swift; sourceTree = "<group>"; };
+		A20000000000000000000024 /* MoviesOutputAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoviesOutputAccess.swift; sourceTree = "<group>"; };
+		A20000000000000000000025 /* DefaultOutputDirectoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultOutputDirectoryTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000026 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
+		A20000000000000000000027 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
+		A20000000000000000000028 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		A20000000000000000000029 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		A2000000000000000000002A /* AppLanguageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguageTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000009 /* MoviesConnector.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MoviesConnector.entitlements; sourceTree = "<group>"; };
 		A2000000000000000000000A /* MoviesConnector.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MoviesConnector.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2000000000000000000000B /* MoviesConnectorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MoviesConnectorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -112,9 +136,11 @@
 			isa = PBXGroup;
 			children = (
 				A70000000000000000000005 /* App */,
+				A70000000000000000000009 /* Settings */,
 				A70000000000000000000006 /* Join */,
 				A70000000000000000000007 /* Media */,
 				A70000000000000000000008 /* FileAccess */,
+				A7000000000000000000000A /* Resources */,
 				A20000000000000000000009 /* MoviesConnector.entitlements */,
 			);
 			path = MoviesConnector;
@@ -137,6 +163,9 @@
 				A2000000000000000000001D /* JoinViewModelIntegrationTests.swift */,
 				A2000000000000000000001E /* AcceptanceResilienceTests.swift */,
 				A2000000000000000000001F /* AcceptanceProductionBenchmarkTests.swift */,
+				A20000000000000000000021 /* MovieDropItemLoaderTests.swift */,
+				A20000000000000000000025 /* DefaultOutputDirectoryTests.swift */,
+				A2000000000000000000002A /* AppLanguageTests.swift */,
 			);
 			path = MoviesConnectorTests;
 			sourceTree = "<group>";
@@ -154,8 +183,26 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000001 /* MoviesConnectorApp.swift */,
+				A20000000000000000000026 /* AppSettings.swift */,
+				A20000000000000000000027 /* L10n.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		A70000000000000000000009 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000028 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		A7000000000000000000000A /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000029 /* Localizable.xcstrings */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		A70000000000000000000006 /* Join */ = {
@@ -165,6 +212,7 @@
 				A20000000000000000000003 /* JoinViewModel.swift */,
 				A20000000000000000000017 /* JoinProtocols.swift */,
 				A20000000000000000000018 /* JoinQueueItem.swift */,
+				A2000000000000000000002B /* JoinQueueEntry.swift */,
 			);
 			path = Join;
 			sourceTree = "<group>";
@@ -185,6 +233,10 @@
 				A20000000000000000000007 /* SecurityScopedAccess.swift */,
 				A2000000000000000000000E /* MovieContentTypes.swift */,
 				A2000000000000000000000F /* DroppedMovieURLFilter.swift */,
+				A20000000000000000000022 /* DropDiagnostics.swift */,
+				A20000000000000000000023 /* DefaultOutputDirectory.swift */,
+				A20000000000000000000024 /* MoviesOutputAccess.swift */,
+				A20000000000000000000020 /* MovieDropItemLoader.swift */,
 				A20000000000000000000010 /* MovieOpenPanel.swift */,
 				A20000000000000000000011 /* MovieSavePanel.swift */,
 				A20000000000000000000012 /* UserSelectedURLAccess.swift */,
@@ -254,6 +306,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				ja,
 				Base,
 			);
 			mainGroup = A70000000000000000000001;
@@ -272,6 +325,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10000000000000000000029 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -283,16 +337,24 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10000000000000000000001 /* MoviesConnectorApp.swift in Sources */,
+				A10000000000000000000026 /* AppSettings.swift in Sources */,
+				A10000000000000000000027 /* L10n.swift in Sources */,
+				A10000000000000000000028 /* SettingsView.swift in Sources */,
 				A10000000000000000000002 /* JoinView.swift in Sources */,
 				A10000000000000000000003 /* JoinViewModel.swift in Sources */,
 				A10000000000000000000017 /* JoinProtocols.swift in Sources */,
 				A10000000000000000000018 /* JoinQueueItem.swift in Sources */,
+				A1000000000000000000002B /* JoinQueueEntry.swift in Sources */,
 				A10000000000000000000004 /* CompatibilitySignature.swift in Sources */,
 				A10000000000000000000005 /* AssetInspector.swift in Sources */,
 				A10000000000000000000006 /* JoinExporter.swift in Sources */,
 				A10000000000000000000007 /* SecurityScopedAccess.swift in Sources */,
 				A1000000000000000000000E /* MovieContentTypes.swift in Sources */,
 				A1000000000000000000000F /* DroppedMovieURLFilter.swift in Sources */,
+				A10000000000000000000022 /* DropDiagnostics.swift in Sources */,
+				A10000000000000000000023 /* DefaultOutputDirectory.swift in Sources */,
+				A10000000000000000000024 /* MoviesOutputAccess.swift in Sources */,
+				A10000000000000000000020 /* MovieDropItemLoader.swift in Sources */,
 				A10000000000000000000010 /* MovieOpenPanel.swift in Sources */,
 				A10000000000000000000011 /* MovieSavePanel.swift in Sources */,
 				A10000000000000000000012 /* UserSelectedURLAccess.swift in Sources */,
@@ -317,6 +379,9 @@
 				A1000000000000000000001D /* JoinViewModelIntegrationTests.swift in Sources */,
 				A1000000000000000000001E /* AcceptanceResilienceTests.swift in Sources */,
 				A1000000000000000000001F /* AcceptanceProductionBenchmarkTests.swift in Sources */,
+				A10000000000000000000021 /* MovieDropItemLoaderTests.swift in Sources */,
+				A10000000000000000000025 /* DefaultOutputDirectoryTests.swift in Sources */,
+				A1000000000000000000002A /* AppLanguageTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

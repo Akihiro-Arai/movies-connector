@@ -23,7 +23,7 @@ macOS-native app that concatenates video files in a user-specified order as fast
 
 ## UI (single screen)
 
-- Add videos / Finder drop
+- Add videos / Finder drop (`public.file-url` only; Photos DnD unsupported — export to Finder first)
 - Reorderable list (name, duration, compatibility)
 - Output path + Join button
 - Progress + cancel while exporting

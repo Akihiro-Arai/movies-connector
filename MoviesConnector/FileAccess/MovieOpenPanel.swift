@@ -18,8 +18,8 @@ enum MovieOpenPanel {
     /// Presents a multi-select movie open panel.
     /// - Returns: Selected URLs in panel order, or `nil` if the user cancelled.
     static func present(
-        message: String = "Select videos to join",
-        prompt: String = "Add"
+        message: String? = nil,
+        prompt: String? = nil
     ) -> [URL]? {
         if let presentForTesting {
             return presentForTesting()
@@ -33,8 +33,8 @@ enum MovieOpenPanel {
 
     /// Builds the configured panel (exposed for configuration tests).
     static func makePanel(
-        message: String = "Select videos to join",
-        prompt: String = "Add"
+        message: String? = nil,
+        prompt: String? = nil
     ) -> NSOpenPanel {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
@@ -43,9 +43,9 @@ enum MovieOpenPanel {
         panel.canCreateDirectories = false
         panel.treatsFilePackagesAsDirectories = false
         panel.allowedContentTypes = MovieContentTypes.importTypes
-        panel.message = message
-        panel.prompt = prompt
-        panel.title = "Add Videos"
+        panel.message = message ?? L10n.string("panel.open.message")
+        panel.prompt = prompt ?? L10n.string("panel.open.prompt")
+        panel.title = L10n.string("panel.open.title")
         return panel
     }
 }

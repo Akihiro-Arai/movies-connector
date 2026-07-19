@@ -10,7 +10,7 @@ Implementation types: `MoviesConnector/Media/CompatibilitySignature.swift`, `Ass
 | --- | --- |
 | Video tracks | Exactly **1** per file |
 | Audio tracks | **0 or 1** only (`> 1` → unsupported topology); count must match across all inputs |
-| Other tracks | **Unsupported** (timecode, subtitle/forced text, closed caption, metadata media, etc.) → reject |
+| Other tracks | **Ignorable side-cars** are limited to metadata and timecode (common Photos/iPhone attachments). Text / closed caption / subtitle and any other non-AV media type → reject |
 | Chapters / attachments | Not part of the signature; ignore for compare, do not require |
 
 ## Fields and normalization
@@ -21,7 +21,7 @@ Implementation types: `MoviesConnector/Media/CompatibilitySignature.swift`, `Ass
 | --- | --- | --- |
 | `videoTrackCount` | `AVAsset.tracks` filtered by `.video` | Integer count |
 | `audioTrackCount` | `AVAsset.tracks` filtered by `.audio` | Integer count |
-| `hasUnsupportedTracks` | Any track whose media type is not video/audio | `true` → always incompatible |
+| `hasUnsupportedTracks` | Any non-AV track that is not an ignorable side-car | `true` → always incompatible |
 
 ### Video
 
