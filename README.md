@@ -11,4 +11,28 @@ See [DESIGN.md](DESIGN.md) for v1 scope and architecture.
 
 ## Build
 
-Open `MoviesConnector.xcodeproj` in Xcode and run the `MoviesConnector` scheme.
+```bash
+xcodebuild -scheme MoviesConnector -destination 'platform=macOS' build
+```
+
+Or open `MoviesConnector.xcodeproj` in Xcode and run the `MoviesConnector` scheme.
+
+## Layout
+
+```text
+MoviesConnector.xcodeproj
+├── MoviesConnector
+│   ├── App/
+│   ├── Join/
+│   ├── Media/
+│   ├── FileAccess/
+│   └── MoviesConnector.entitlements
+└── MoviesConnectorTests/
+```
+
+## Spike (#1)
+
+Passthrough join validation and `CompatibilitySignature` rules:
+
+- [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md)
+- [docs/SPIKE.md](docs/SPIKE.md)

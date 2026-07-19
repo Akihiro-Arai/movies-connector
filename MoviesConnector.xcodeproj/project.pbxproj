@@ -1,0 +1,407 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* MoviesConnectorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* MoviesConnectorApp.swift */; };
+		A10000000000000000000002 /* JoinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000002 /* JoinView.swift */; };
+		A10000000000000000000003 /* JoinViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* JoinViewModel.swift */; };
+		A10000000000000000000004 /* CompatibilitySignature.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* CompatibilitySignature.swift */; };
+		A10000000000000000000005 /* AssetInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000005 /* AssetInspector.swift */; };
+		A10000000000000000000006 /* JoinExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000006 /* JoinExporter.swift */; };
+		A10000000000000000000007 /* SecurityScopedAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* SecurityScopedAccess.swift */; };
+		A10000000000000000000008 /* CompatibilitySignatureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* CompatibilitySignatureTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A30000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A40000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A50000000000000000000001;
+			remoteInfo = MoviesConnector;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000001 /* MoviesConnectorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoviesConnectorApp.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* JoinView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinView.swift; sourceTree = "<group>"; };
+		A20000000000000000000003 /* JoinViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinViewModel.swift; sourceTree = "<group>"; };
+		A20000000000000000000004 /* CompatibilitySignature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompatibilitySignature.swift; sourceTree = "<group>"; };
+		A20000000000000000000005 /* AssetInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AssetInspector.swift; sourceTree = "<group>"; };
+		A20000000000000000000006 /* JoinExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinExporter.swift; sourceTree = "<group>"; };
+		A20000000000000000000007 /* SecurityScopedAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecurityScopedAccess.swift; sourceTree = "<group>"; };
+		A20000000000000000000008 /* CompatibilitySignatureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompatibilitySignatureTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000009 /* MoviesConnector.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MoviesConnector.entitlements; sourceTree = "<group>"; };
+		A2000000000000000000000A /* MoviesConnector.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MoviesConnector.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A2000000000000000000000B /* MoviesConnectorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MoviesConnectorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A60000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A60000000000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A70000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A70000000000000000000002 /* MoviesConnector */,
+				A70000000000000000000003 /* MoviesConnectorTests */,
+				A70000000000000000000004 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A70000000000000000000002 /* MoviesConnector */ = {
+			isa = PBXGroup;
+			children = (
+				A70000000000000000000005 /* App */,
+				A70000000000000000000006 /* Join */,
+				A70000000000000000000007 /* Media */,
+				A70000000000000000000008 /* FileAccess */,
+				A20000000000000000000009 /* MoviesConnector.entitlements */,
+			);
+			path = MoviesConnector;
+			sourceTree = "<group>";
+		};
+		A70000000000000000000003 /* MoviesConnectorTests */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000008 /* CompatibilitySignatureTests.swift */,
+			);
+			path = MoviesConnectorTests;
+			sourceTree = "<group>";
+		};
+		A70000000000000000000004 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A2000000000000000000000A /* MoviesConnector.app */,
+				A2000000000000000000000B /* MoviesConnectorTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A70000000000000000000005 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000001 /* MoviesConnectorApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A70000000000000000000006 /* Join */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000002 /* JoinView.swift */,
+				A20000000000000000000003 /* JoinViewModel.swift */,
+			);
+			path = Join;
+			sourceTree = "<group>";
+		};
+		A70000000000000000000007 /* Media */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000004 /* CompatibilitySignature.swift */,
+				A20000000000000000000005 /* AssetInspector.swift */,
+				A20000000000000000000006 /* JoinExporter.swift */,
+			);
+			path = Media;
+			sourceTree = "<group>";
+		};
+		A70000000000000000000008 /* FileAccess */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000007 /* SecurityScopedAccess.swift */,
+			);
+			path = FileAccess;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000000000000000000001 /* MoviesConnector */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A80000000000000000000003 /* Build configuration list for PBXNativeTarget "MoviesConnector" */;
+			buildPhases = (
+				A90000000000000000000001 /* Sources */,
+				A60000000000000000000001 /* Frameworks */,
+				AA0000000000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MoviesConnector;
+			productName = MoviesConnector;
+			productReference = A2000000000000000000000A /* MoviesConnector.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A50000000000000000000002 /* MoviesConnectorTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A80000000000000000000004 /* Build configuration list for PBXNativeTarget "MoviesConnectorTests" */;
+			buildPhases = (
+				A90000000000000000000002 /* Sources */,
+				A60000000000000000000002 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AB0000000000000000000001 /* PBXTargetDependency */,
+			);
+			name = MoviesConnectorTests;
+			productName = MoviesConnectorTests;
+			productReference = A2000000000000000000000B /* MoviesConnectorTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A40000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					A50000000000000000000001 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					A50000000000000000000002 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = A50000000000000000000001;
+					};
+				};
+			};
+			buildConfigurationList = A80000000000000000000001 /* Build configuration list for PBXProject "MoviesConnector" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A70000000000000000000001;
+			productRefGroup = A70000000000000000000004 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A50000000000000000000001 /* MoviesConnector */,
+				A50000000000000000000002 /* MoviesConnectorTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AA0000000000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A90000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000001 /* MoviesConnectorApp.swift in Sources */,
+				A10000000000000000000002 /* JoinView.swift in Sources */,
+				A10000000000000000000003 /* JoinViewModel.swift in Sources */,
+				A10000000000000000000004 /* CompatibilitySignature.swift in Sources */,
+				A10000000000000000000005 /* AssetInspector.swift in Sources */,
+				A10000000000000000000006 /* JoinExporter.swift in Sources */,
+				A10000000000000000000007 /* SecurityScopedAccess.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A90000000000000000000002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000000000000000000008 /* CompatibilitySignatureTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AB0000000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A50000000000000000000001 /* MoviesConnector */;
+			targetProxy = A30000000000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		AC0000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		AC0000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		AC0000000000000000000003 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = MoviesConnector/MoviesConnector.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readwrite;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Movies Connector";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.video";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.akihiroarai.MoviesConnector;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		AC0000000000000000000004 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = MoviesConnector/MoviesConnector.entitlements;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readwrite;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Movies Connector";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.video";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.akihiroarai.MoviesConnector;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		AC0000000000000000000005 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.akihiroarai.MoviesConnectorTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MoviesConnector.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MoviesConnector";
+			};
+			name = Debug;
+		};
+		AC0000000000000000000006 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.akihiroarai.MoviesConnectorTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MoviesConnector.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MoviesConnector";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A80000000000000000000001 /* Build configuration list for PBXProject "MoviesConnector" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC0000000000000000000001 /* Debug */,
+				AC0000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A80000000000000000000003 /* Build configuration list for PBXNativeTarget "MoviesConnector" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC0000000000000000000003 /* Debug */,
+				AC0000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A80000000000000000000004 /* Build configuration list for PBXNativeTarget "MoviesConnectorTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AC0000000000000000000005 /* Debug */,
+				AC0000000000000000000006 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A40000000000000000000001 /* Project object */;
+}
