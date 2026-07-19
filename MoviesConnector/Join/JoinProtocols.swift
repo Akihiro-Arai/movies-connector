@@ -62,16 +62,30 @@ final class SystemOutputDestinationSelector: OutputDestinationSelecting {
 // MARK: - Export
 
 protocol JoinExporting: Sendable {
-    func join(inputURLs: [URL], outputURL: URL) async throws
+    func join(
+        inputURLs: [URL],
+        outputURL: URL,
+        progress: (@Sendable (Double) -> Void)?
+    ) async throws
 }
 
-/// Production export seam — wraps `JoinExporter` without modifying Media/.
-struct DefaultJoinExporter: JoinExporting {
+extension JoinExporting {
     func join(inputURLs: [URL], outputURL: URL) async throws {
-        var scoped = inputURLs
-        scoped.append(outputURL)
-        try await UserSelectedURLAccess.withPreparedAccess(to: scoped) {
-            try await JoinExporter.join(inputURLs: inputURLs, outputURL: outputURL)
-        }
+        try await join(inputURLs: inputURLs, outputURL: outputURL, progress: nil)
+    }
+}
+
+/// Production export seam — forwards to `JoinExporter` (access + preflight + passthrough).
+struct DefaultJoinExporter: JoinExporting {
+    func join(
+        inputURLs: [URL],
+        outputURL: URL,
+        progress: (@Sendable (Double) -> Void)?
+    ) async throws {
+        try await JoinExporter.join(
+            inputURLs: inputURLs,
+            outputURL: outputURL,
+            progress: progress
+        )
     }
 }

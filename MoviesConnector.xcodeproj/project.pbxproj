@@ -31,6 +31,7 @@
 		A10000000000000000000016 /* MovieContentTypesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000016 /* MovieContentTypesTests.swift */; };
 		A10000000000000000000019 /* JoinViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000019 /* JoinViewModelTests.swift */; };
 		A1000000000000000000001B /* JoinAdapterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001B /* JoinAdapterTests.swift */; };
+		A1000000000000000000001C /* JoinExporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000001C /* JoinExporterTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -68,6 +69,7 @@
 		A20000000000000000000016 /* MovieContentTypesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MovieContentTypesTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000019 /* JoinViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinViewModelTests.swift; sourceTree = "<group>"; };
 		A2000000000000000000001B /* JoinAdapterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinAdapterTests.swift; sourceTree = "<group>"; };
+		A2000000000000000000001C /* JoinExporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinExporterTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000009 /* MoviesConnector.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MoviesConnector.entitlements; sourceTree = "<group>"; };
 		A2000000000000000000000A /* MoviesConnector.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MoviesConnector.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2000000000000000000000B /* MoviesConnectorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MoviesConnectorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -125,6 +127,7 @@
 				A20000000000000000000016 /* MovieContentTypesTests.swift */,
 				A20000000000000000000019 /* JoinViewModelTests.swift */,
 				A2000000000000000000001B /* JoinAdapterTests.swift */,
+				A2000000000000000000001C /* JoinExporterTests.swift */,
 			);
 			path = MoviesConnectorTests;
 			sourceTree = "<group>";
@@ -301,6 +304,7 @@
 				A10000000000000000000016 /* MovieContentTypesTests.swift in Sources */,
 				A10000000000000000000019 /* JoinViewModelTests.swift in Sources */,
 				A1000000000000000000001B /* JoinAdapterTests.swift in Sources */,
+				A1000000000000000000001C /* JoinExporterTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

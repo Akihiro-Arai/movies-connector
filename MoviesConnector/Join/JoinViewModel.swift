@@ -5,6 +5,7 @@ final class JoinViewModel: ObservableObject {
     @Published private(set) var items: [JoinQueueItem] = []
     @Published private(set) var outputURL: URL?
     @Published private(set) var isJoining = false
+    @Published private(set) var joinProgress: Double = 0
     @Published private(set) var statusMessage: String?
 
     private let inspector: any AssetInspecting
@@ -14,6 +15,10 @@ final class JoinViewModel: ObservableObject {
 
     /// Per-item inspection generation; stale async completions are ignored.
     private var inspectionGenerations: [UUID: Int] = [:]
+    /// Increments each time a join job is armed; selectors use this to ignore stale results.
+    private var joinGeneration = 0
+    /// ViewModel-owned join task so Cancel can cooperatively cancel the exporter.
+    private var joinTask: Task<Void, Never>?
 
     init(
         inspector: any AssetInspecting = DefaultAssetInspector(),
@@ -34,6 +39,10 @@ final class JoinViewModel: ObservableObject {
         return items.allSatisfy { $0.compatibility == .compatible }
     }
 
+    var canCancelJoin: Bool {
+        isJoining
+    }
+
     var orderedInputURLs: [URL] {
         items.map(\.url)
     }
@@ -51,6 +60,7 @@ final class JoinViewModel: ObservableObject {
 
     /// Filters Finder drops through FileAccess policy, then enqueues accepted movies.
     func addDroppedURLs(_ urls: [URL]) {
+        guard !isJoining else { return }
         let result = DroppedMovieURLFilter.filter(urls)
         if !result.rejected.isEmpty {
             statusMessage = Self.dropRejectionMessage(result.rejected)
@@ -61,6 +71,7 @@ final class JoinViewModel: ObservableObject {
     }
 
     func addURLs(_ urls: [URL]) {
+        guard !isJoining else { return }
         guard !urls.isEmpty else { return }
         var appended: [JoinQueueItem] = []
         for url in urls {
@@ -76,40 +87,54 @@ final class JoinViewModel: ObservableObject {
     }
 
     func removeItem(id: UUID) {
+        guard !isJoining else { return }
         items.removeAll { $0.id == id }
         inspectionGenerations[id] = nil
         recomputeCompatibility()
     }
 
     func moveItems(from source: IndexSet, to destination: Int) {
+        guard !isJoining else { return }
         items.move(fromOffsets: source, toOffset: destination)
         recomputeCompatibility()
     }
 
     func chooseOutputDestination() async {
+        guard !isJoining else { return }
+        let generationAtStart = joinGeneration
         let suggested = suggestedOutputName()
         if let url = await outputSelector.selectOutputDestination(suggestedName: suggested) {
+            // Join may have armed while the selector was open — drop the stale selection.
+            guard !isJoining, joinGeneration == generationAtStart else { return }
             outputURL = url
             statusMessage = nil
         }
     }
 
     func setOutputURLForTesting(_ url: URL?) {
+        guard !isJoining else { return }
         outputURL = url
     }
 
-    func join() async {
-        guard canJoin, let outputURL else { return }
-        isJoining = true
-        statusMessage = nil
-        defer { isJoining = false }
-
-        do {
-            try await exporter.join(inputURLs: orderedInputURLs, outputURL: outputURL)
-            statusMessage = "Joined \(items.count) video(s) → \(outputURL.lastPathComponent)"
-        } catch {
-            statusMessage = error.localizedDescription
+    /// Starts join on a ViewModel-owned task (UI). Prefer `join()` in tests for structured await.
+    func startJoin() {
+        guard let job = armJoinJob() else { return }
+        joinTask?.cancel()
+        joinTask = Task { [weak self] in
+            await self?.performJoin(job)
+            await MainActor.run { self?.joinTask = nil }
         }
+    }
+
+    /// Cancels an in-flight join started via `startJoin()` (or the current `join()` awaiter if nested).
+    func cancelJoin() {
+        joinTask?.cancel()
+    }
+
+    /// Runs join in the caller's task so cancellation and completion are awaitable in tests.
+    func join() async {
+        guard let job = armJoinJob() else { return }
+        await performJoin(job)
     }
 
     // MARK: - Compatibility
@@ -185,6 +210,60 @@ final class JoinViewModel: ObservableObject {
         items[index].signature = nil
         items[index].compatibility = .incompatible(reason: error.localizedDescription)
         recomputeCompatibility()
+    }
+
+    /// Synchronously snapshots inputs/output and enters the joining state before any Task/await.
+    private func armJoinJob() -> JoinJobSnapshot? {
+        guard canJoin, let outputURL else { return nil }
+        let snapshot = JoinJobSnapshot(
+            inputs: orderedInputURLs,
+            inputCount: items.count,
+            outputURL: outputURL,
+            generation: joinGeneration &+ 1
+        )
+        joinGeneration = snapshot.generation
+        isJoining = true
+        joinProgress = 0
+        statusMessage = nil
+        return snapshot
+    }
+
+    private func performJoin(_ job: JoinJobSnapshot) async {
+        defer {
+            if joinGeneration == job.generation {
+                isJoining = false
+            }
+        }
+
+        do {
+            try await exporter.join(
+                inputURLs: job.inputs,
+                outputURL: job.outputURL
+            ) { [weak self] value in
+                Task { @MainActor in
+                    guard let self else { return }
+                    if value >= self.joinProgress {
+                        self.joinProgress = value
+                    }
+                }
+            }
+            joinProgress = 1
+            statusMessage =
+                "Joined \(job.inputCount) video(s) → \(job.outputURL.lastPathComponent)"
+        } catch is CancellationError {
+            statusMessage = JoinExporterError.cancelled.errorDescription
+        } catch let error as JoinExporterError where error == .cancelled {
+            statusMessage = error.errorDescription
+        } catch {
+            statusMessage = error.localizedDescription
+        }
+    }
+
+    private struct JoinJobSnapshot {
+        var inputs: [URL]
+        var inputCount: Int
+        var outputURL: URL
+        var generation: Int
     }
 
     private func suggestedOutputName() -> String {

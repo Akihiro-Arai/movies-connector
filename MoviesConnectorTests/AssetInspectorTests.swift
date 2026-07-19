@@ -3,6 +3,11 @@ import XCTest
 @testable import MoviesConnector
 
 final class AssetInspectorTests: XCTestCase {
+    override func tearDown() {
+        AssetInspector.resetForTesting()
+        super.tearDown()
+    }
+
     func testVideoTimescaleUsesNaturalTimeScaleNotTimeRangeStart() async throws {
         let fixtureURL = try await TestMovieFixtures.compatA()
         let asset = AVURLAsset(url: fixtureURL)
@@ -36,7 +41,7 @@ final class AssetInspectorTests: XCTestCase {
 
     func testInspectReturnsDurationAndSignatureForCompatibleFixture() async throws {
         let url = try await TestMovieFixtures.compatA()
-        let result = await AssetInspector.inspect(url)
+        let result = try await AssetInspector.inspect(url)
 
         XCTAssertEqual(result.url, url)
         XCTAssertEqual(result.index, 0)
@@ -51,7 +56,7 @@ final class AssetInspectorTests: XCTestCase {
     func testCompatiblePairPassesPreflight() async throws {
         let a = try await TestMovieFixtures.url(named: "compat_a.mov")
         let b = try await TestMovieFixtures.url(named: "compat_b.mov")
-        let report = await AssetInspector.preflight(urls: [a, b])
+        let report = try await AssetInspector.preflight(urls: [a, b])
 
         XCTAssertTrue(report.canExport)
         XCTAssertEqual(report.results.count, 2)
@@ -64,7 +69,7 @@ final class AssetInspectorTests: XCTestCase {
     func testDisplaySizeMismatchProducesRowAddressableReason() async throws {
         let a = try await TestMovieFixtures.url(named: "compat_a.mov")
         let bad = try await TestMovieFixtures.url(named: "incompat_size.mov")
-        let report = await AssetInspector.preflight(urls: [a, bad])
+        let report = try await AssetInspector.preflight(urls: [a, bad])
 
         XCTAssertFalse(report.canExport)
         XCTAssertEqual(report.results[0].status, .compatible)
@@ -87,7 +92,7 @@ final class AssetInspectorTests: XCTestCase {
     func testFrameDurationMismatchProducesRowAddressableReason() async throws {
         let a = try await TestMovieFixtures.url(named: "compat_a.mov")
         let bad = try await TestMovieFixtures.url(named: "incompat_fps.mov")
-        let report = await AssetInspector.preflight(urls: [a, bad])
+        let report = try await AssetInspector.preflight(urls: [a, bad])
 
         XCTAssertFalse(report.canExport)
         guard case .mismatch(let mismatches) = report.results[1].status else {
@@ -106,7 +111,7 @@ final class AssetInspectorTests: XCTestCase {
             .appendingPathComponent("movies-connector-missing-\(UUID().uuidString).mov")
         let readable = try await TestMovieFixtures.compatA()
 
-        let report = await AssetInspector.preflight(urls: [missing, readable])
+        let report = try await AssetInspector.preflight(urls: [missing, readable])
         XCTAssertFalse(report.canExport)
         guard case .unreadable = report.results[0].status else {
             return XCTFail("Expected unreadable reference, got \(report.results[0].status)")
@@ -124,7 +129,7 @@ final class AssetInspectorTests: XCTestCase {
         let size = try await TestMovieFixtures.url(named: "incompat_size.mov")
         let urls = [size, b, a]
 
-        let report = await AssetInspector.preflight(urls: urls)
+        let report = try await AssetInspector.preflight(urls: urls)
         XCTAssertEqual(report.results.map(\.url), urls)
         XCTAssertEqual(report.results.map(\.index), [0, 1, 2])
     }
@@ -133,7 +138,7 @@ final class AssetInspectorTests: XCTestCase {
         let a = try await TestMovieFixtures.url(named: "compat_a.mov")
         let size = try await TestMovieFixtures.url(named: "incompat_size.mov")
 
-        let forward = await AssetInspector.preflight(urls: [a, size])
+        let forward = try await AssetInspector.preflight(urls: [a, size])
         XCTAssertEqual(forward.results[0].status, .compatible)
         XCTAssertFalse(forward.results[1].status.isAcceptable)
 
@@ -155,7 +160,7 @@ final class AssetInspectorTests: XCTestCase {
     func testReusingInspectionsWithCompatibleReferencePasses() async throws {
         let a = try await TestMovieFixtures.url(named: "compat_a.mov")
         let b = try await TestMovieFixtures.url(named: "compat_b.mov")
-        let loaded = await AssetInspector.preflight(urls: [a, b])
+        let loaded = try await AssetInspector.preflight(urls: [a, b])
         let recomputed = AssetInspector.preflight(reusing: loaded.results)
         XCTAssertTrue(recomputed.canExport)
         XCTAssertEqual(recomputed.results.map(\.url), [a, b])
@@ -208,7 +213,7 @@ final class AssetInspectorTests: XCTestCase {
             let flag = Flag()
 
             let inspection = Task { @MainActor in
-                _ = await AssetInspector.inspect(url)
+                _ = try await AssetInspector.inspect(url)
                 flag.inspectionCompleted = true
                 inspectionFinished.fulfill()
             }
@@ -228,7 +233,7 @@ final class AssetInspectorTests: XCTestCase {
                 }
             }
 
-            _ = await inspection.value
+            _ = try await inspection.value
             _ = await heartbeat.value
         }
 
