@@ -97,25 +97,41 @@ struct JoinView: View {
     }
 
     private var actionsRow: some View {
-        HStack {
-            Button("Add Videos") {
-                Task { await viewModel.addVideos() }
+        VStack(alignment: .leading, spacing: 10) {
+            if viewModel.isJoining {
+                ProgressView(value: viewModel.joinProgress, total: 1)
+                    .accessibilityLabel("Join progress")
+                    .accessibilityValue("\(Int((viewModel.joinProgress * 100).rounded())) percent")
             }
-            .keyboardShortcut("o", modifiers: [.command])
 
-            Spacer()
+            HStack {
+                Button("Add Videos") {
+                    Task { await viewModel.addVideos() }
+                }
+                .keyboardShortcut("o", modifiers: [.command])
+                .disabled(viewModel.isJoining)
 
-            Button("Join") {
-                Task { await viewModel.join() }
+                Spacer()
+
+                if viewModel.canCancelJoin {
+                    Button("Cancel") {
+                        viewModel.cancelJoin()
+                    }
+                    .accessibilityLabel("Cancel join")
+                }
+
+                Button("Join") {
+                    viewModel.startJoin()
+                }
+                .keyboardShortcut(.defaultAction)
+                .disabled(!viewModel.canJoin)
+                .accessibilityLabel("Join videos")
+                .accessibilityHint(
+                    viewModel.canJoin
+                        ? "Starts lossless passthrough join"
+                        : "Disabled until the queue is ready"
+                )
             }
-            .keyboardShortcut(.defaultAction)
-            .disabled(!viewModel.canJoin)
-            .accessibilityLabel("Join videos")
-            .accessibilityHint(
-                viewModel.canJoin
-                    ? "Starts lossless passthrough join"
-                    : "Disabled until the queue is ready"
-            )
         }
     }
 

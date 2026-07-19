@@ -393,8 +393,13 @@ private final class MockExporter: JoinExporting, @unchecked Sendable {
     private(set) var lastInputURLs: [URL]?
     private(set) var lastOutputURL: URL?
 
-    func join(inputURLs: [URL], outputURL: URL) async throws {
+    func join(
+        inputURLs: [URL],
+        outputURL: URL,
+        progress: (@Sendable (Double) -> Void)?
+    ) async throws {
         lastInputURLs = inputURLs
         lastOutputURL = outputURL
+        progress?(1)
     }
 }

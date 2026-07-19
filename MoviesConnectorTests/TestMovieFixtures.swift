@@ -39,6 +39,26 @@ enum TestMovieFixtures {
         try await url(named: "compat_a.mov")
     }
 
+    /// One-off compatible H.264 clip for cancellation / longer-export tests.
+    static func makeTemporaryCompatibleMovie(frameCount: Int) async throws -> URL {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("movies-connector-test-oneoff", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent("long_compat.mov")
+        let spec = Spec(
+            name: "long_compat",
+            width: 320,
+            height: 240,
+            frameCount: frameCount,
+            fps: 30,
+            color: .systemTeal,
+            bitRate: 500_000
+        )
+        try await writeMovie(spec: spec, to: url)
+        return url
+    }
+
     private actor Gate {
         private var cachedDirectory: URL?
         private var inFlight: Task<URL, Error>?

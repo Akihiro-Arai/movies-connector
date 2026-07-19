@@ -5,6 +5,7 @@ final class JoinViewModel: ObservableObject {
     @Published private(set) var items: [JoinQueueItem] = []
     @Published private(set) var outputURL: URL?
     @Published private(set) var isJoining = false
+    @Published private(set) var joinProgress: Double = 0
     @Published private(set) var statusMessage: String?
 
     private let inspector: any AssetInspecting
@@ -14,6 +15,8 @@ final class JoinViewModel: ObservableObject {
 
     /// Per-item inspection generation; stale async completions are ignored.
     private var inspectionGenerations: [UUID: Int] = [:]
+    /// ViewModel-owned join task so Cancel can cooperatively cancel the exporter.
+    private var joinTask: Task<Void, Never>?
 
     init(
         inspector: any AssetInspecting = DefaultAssetInspector(),
@@ -32,6 +35,10 @@ final class JoinViewModel: ObservableObject {
         guard outputURL != nil else { return false }
         guard !items.isEmpty else { return false }
         return items.allSatisfy { $0.compatibility == .compatible }
+    }
+
+    var canCancelJoin: Bool {
+        isJoining
     }
 
     var orderedInputURLs: [URL] {
@@ -98,18 +105,25 @@ final class JoinViewModel: ObservableObject {
         outputURL = url
     }
 
+    /// Starts join on a ViewModel-owned task (UI). Prefer `join()` in tests for structured await.
+    func startJoin() {
+        guard canJoin, let outputURL else { return }
+        joinTask?.cancel()
+        joinTask = Task { [weak self] in
+            await self?.performJoin(outputURL: outputURL)
+            await MainActor.run { self?.joinTask = nil }
+        }
+    }
+
+    /// Cancels an in-flight join started via `startJoin()` (or the current `join()` awaiter if nested).
+    func cancelJoin() {
+        joinTask?.cancel()
+    }
+
+    /// Runs join in the caller's task so cancellation and completion are awaitable in tests.
     func join() async {
         guard canJoin, let outputURL else { return }
-        isJoining = true
-        statusMessage = nil
-        defer { isJoining = false }
-
-        do {
-            try await exporter.join(inputURLs: orderedInputURLs, outputURL: outputURL)
-            statusMessage = "Joined \(items.count) video(s) → \(outputURL.lastPathComponent)"
-        } catch {
-            statusMessage = error.localizedDescription
-        }
+        await performJoin(outputURL: outputURL)
     }
 
     // MARK: - Compatibility
@@ -185,6 +199,32 @@ final class JoinViewModel: ObservableObject {
         items[index].signature = nil
         items[index].compatibility = .incompatible(reason: error.localizedDescription)
         recomputeCompatibility()
+    }
+
+    private func performJoin(outputURL: URL) async {
+        isJoining = true
+        joinProgress = 0
+        statusMessage = nil
+        defer { isJoining = false }
+
+        do {
+            try await exporter.join(inputURLs: orderedInputURLs, outputURL: outputURL) { [weak self] value in
+                Task { @MainActor in
+                    guard let self else { return }
+                    if value >= self.joinProgress {
+                        self.joinProgress = value
+                    }
+                }
+            }
+            joinProgress = 1
+            statusMessage = "Joined \(items.count) video(s) → \(outputURL.lastPathComponent)"
+        } catch is CancellationError {
+            statusMessage = JoinExporterError.cancelled.errorDescription
+        } catch let error as JoinExporterError where error == .cancelled {
+            statusMessage = error.errorDescription
+        } catch {
+            statusMessage = error.localizedDescription
+        }
     }
 
     private func suggestedOutputName() -> String {
