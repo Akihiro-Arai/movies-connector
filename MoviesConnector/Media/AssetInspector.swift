@@ -172,8 +172,7 @@ enum AssetInspector: Sendable {
             case .audio:
                 audioTracks.append(track)
             default:
-                // Photos / iPhone movies often carry metadata, timecode, or text tracks.
-                // JoinExporter only inserts video + first audio, so those side-cars are fine.
+                // Photos / iPhone movies often carry metadata/timecode side-cars.
                 if !isPassthroughIgnorableTrack(track.mediaType) {
                     hasUnsupportedTracks = true
                 }
@@ -230,7 +229,7 @@ enum AssetInspector: Sendable {
         }
 
         // Report the true audio track count so multi-audio is rejected (v1 cannot
-        // passthrough every audio track). Side-car metadata/timecode/text remain ignorable.
+        // passthrough every audio track). Only metadata/timecode side-cars are ignorable.
         return CompatibilitySignature(
             videoTrackCount: videoTracks.count,
             audioTrackCount: audioTracks.count,

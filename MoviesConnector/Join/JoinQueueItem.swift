@@ -33,7 +33,7 @@ enum JoinCompatibilityState: Equatable, Sendable {
     }
 }
 
-/// In-flight drag import shown as a queue row while Photos / iCloud materializes the file.
+/// In-flight Finder drop shown as a queue row while the file URL resolves.
 struct PendingDropImport: Identifiable, Equatable, Sendable {
     let id: UUID
     var title: String
@@ -70,16 +70,8 @@ struct JoinQueueItem: Identifiable, Equatable, Sendable {
         self.signature = signature
     }
 
-    /// Strips the drop-copy UUID prefix (`<uuid>-IMG_3765.MOV` → `IMG_3765.MOV`).
     static func preferredDisplayName(for url: URL) -> String {
-        let name = url.lastPathComponent
-        let uuidPrefix =
-            #"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}-"#
-        guard let range = name.range(of: uuidPrefix, options: .regularExpression) else {
-            return name
-        }
-        let stripped = String(name[range.upperBound...])
-        return stripped.isEmpty ? name : stripped
+        url.lastPathComponent
     }
 }
 

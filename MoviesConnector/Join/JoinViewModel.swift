@@ -9,7 +9,9 @@ final class JoinViewModel: ObservableObject {
     @Published private(set) var isJoining = false
     @Published private(set) var joinProgress: Double = 0
     @Published private(set) var statusMessage: String?
-    /// Selectable / copyable drop + import diagnostics for debugging Photos / Finder drops.
+    /// Most recently written join output; used for “Show in Finder”.
+    @Published private(set) var lastJoinedURL: URL?
+    /// Selectable / copyable drop + import diagnostics for debugging Finder drops.
     @Published private(set) var debugLog: String = ""
 
     private let inspector: any AssetInspecting
@@ -23,10 +25,8 @@ final class JoinViewModel: ObservableObject {
     private var joinGeneration = 0
     /// ViewModel-owned join task so Cancel can cooperatively cancel the exporter.
     private var joinTask: Task<Void, Never>?
-    /// In-flight drop materialization tasks (#21).
+    /// In-flight Finder drop resolve tasks (#21).
     private var dropImportTasks: [UUID: Task<Void, Never>] = [:]
-    /// App-owned persisted drop copies eligible for cleanup (#24).
-    private var ownedDropURLs: Set<URL> = []
     /// When true, adding videos refreshes the default filename under Movies/Movies Connector.
     private var usesManagedDefaultOutput = false
 
@@ -40,7 +40,6 @@ final class JoinViewModel: ObservableObject {
         self.videoSelector = videoSelector
         self.outputSelector = outputSelector
         self.exporter = exporter
-        MovieDropItemLoader.cleanupAbandonedDropSessions()
     }
 
     /// Materialized movies in queue order (pending rows skipped).
@@ -67,7 +66,7 @@ final class JoinViewModel: ObservableObject {
         isJoining
     }
 
-    /// True while any drop is still materializing.
+    /// True while any Finder drop is still resolving.
     var isImportingDrop: Bool {
         !pendingDropImports.isEmpty
     }
@@ -81,8 +80,49 @@ final class JoinViewModel: ObservableObject {
         items.map(\.url)
     }
 
+    /// Compact path for the output row (`~/Movies/...` instead of `/Users/…`).
     var outputDisplayPath: String {
+        guard let outputURL else { return L10n.string("ui.output.none") }
+        return Self.abbreviatedPath(for: outputURL)
+    }
+
+    /// Full filesystem path for tooltips / copy.
+    var outputFullPath: String {
         outputURL?.path ?? L10n.string("ui.output.none")
+    }
+
+    var canRevealLastJoined: Bool {
+        guard let lastJoinedURL else { return false }
+        return FileManager.default.fileExists(atPath: lastJoinedURL.path)
+    }
+
+    /// Reveals the last successful join in Finder.
+    func revealLastJoinedInFinder() {
+        guard let lastJoinedURL, FileManager.default.fileExists(atPath: lastJoinedURL.path) else {
+            return
+        }
+        NSWorkspace.shared.activateFileViewerSelecting([lastJoinedURL])
+    }
+
+    /// Reveals the current output file (or its folder if not written yet).
+    func revealOutputInFinder() {
+        guard let outputURL else { return }
+        if FileManager.default.fileExists(atPath: outputURL.path) {
+            NSWorkspace.shared.activateFileViewerSelecting([outputURL])
+        } else {
+            let folder = outputURL.deletingLastPathComponent()
+            NSWorkspace.shared.open(folder)
+        }
+    }
+
+    static func abbreviatedPath(for url: URL) -> String {
+        let path = url.path
+        let home = NSHomeDirectory()
+        if path == home { return "~" }
+        if path.hasPrefix(home + "/") {
+            return "~" + path.dropFirst(home.count)
+        }
+        return path
     }
 
     // MARK: - Default output (Movies / Movies Connector)
@@ -126,7 +166,7 @@ final class JoinViewModel: ObservableObject {
         entries[index] = .pending(pending)
     }
 
-    /// Binds the async materialization task so Cancel can stop it (#21).
+    /// Binds the async drop-resolve task so Cancel can stop it (#21).
     func attachDropImportTask(id: UUID, task: Task<Void, Never>) {
         dropImportTasks[id] = task
     }
@@ -139,22 +179,18 @@ final class JoinViewModel: ObservableObject {
         guard let index = entries.firstIndex(where: { $0.id == id }),
               case .pending = entries[index]
         else {
-            // Cancelled after materialization — drop owned copies (#24).
             appendDebugLine("completeDropImport skipped id=\(id) (missing pending row)")
-            discardOwnedDropCopies(outcome.urls)
             publishDebugLog(from: outcome.diagnostics)
             return
         }
 
         let accepted = filterDroppedURLs(outcome.urls, diagnostics: outcome.diagnostics)
-        let rejectedOwned = outcome.urls.filter { url in
-            !accepted.contains(where: { $0.standardizedFileURL == url.standardizedFileURL })
-                && MovieDropItemLoader.isOwnedDropCopy(url)
-        }
-        discardOwnedDropCopies(rejectedOwned)
 
         if accepted.isEmpty {
             entries.remove(at: index)
+            if outcome.timedOut {
+                statusMessage = L10n.string("status.drop_timeout")
+            }
             publishDebugLog(from: outcome.diagnostics)
             return
         }
@@ -162,9 +198,6 @@ final class JoinViewModel: ObservableObject {
         var replacement: [JoinQueueEntry] = []
         for url in accepted {
             let item = JoinQueueItem(url: url)
-            if MovieDropItemLoader.isOwnedDropCopy(url) {
-                ownedDropURLs.insert(url.standardizedFileURL)
-            }
             inspectionGenerations[item.id] = 0
             replacement.append(.item(item))
             outcome.diagnostics.log("enqueue id=\(item.id) name=\(item.displayName)")
@@ -177,25 +210,6 @@ final class JoinViewModel: ObservableObject {
         for entry in replacement {
             if case .item(let item) = entry {
                 startInspection(for: item.id)
-            }
-        }
-    }
-
-    private func discardOwnedDropCopies(_ urls: [URL]) {
-        for url in urls where MovieDropItemLoader.isOwnedDropCopy(url) {
-            let standardized = url.standardizedFileURL
-            ownedDropURLs.remove(standardized)
-            try? FileManager.default.removeItem(at: standardized)
-            // Remove empty session directory when possible.
-            let parent = standardized.deletingLastPathComponent()
-            if MovieDropItemLoader.isOwnedDropCopy(parent),
-               let contents = try? FileManager.default.contentsOfDirectory(
-                   at: parent,
-                   includingPropertiesForKeys: nil
-               ),
-               contents.isEmpty
-            {
-                try? FileManager.default.removeItem(at: parent)
             }
         }
     }
@@ -309,9 +323,6 @@ final class JoinViewModel: ObservableObject {
 
     func removeItem(id: UUID) {
         guard isMutationEnabled else { return }
-        if let item = entries.first(where: { $0.id == id })?.asItem {
-            removeOwnedDropCopyIfNeeded(item.url)
-        }
         entries.removeAll { $0.id == id }
         inspectionGenerations[id] = nil
         recomputeCompatibility()
@@ -363,10 +374,6 @@ final class JoinViewModel: ObservableObject {
             in: directory,
             fileName: suggestedOutputName()
         )
-    }
-
-    private func removeOwnedDropCopyIfNeeded(_ url: URL) {
-        discardOwnedDropCopies([url])
     }
 
     // MARK: - Join
@@ -507,6 +514,7 @@ final class JoinViewModel: ObservableObject {
         isJoining = true
         joinProgress = 0
         statusMessage = nil
+        lastJoinedURL = nil
         return snapshot
     }
 
@@ -532,6 +540,7 @@ final class JoinViewModel: ObservableObject {
             }
             guard joinGeneration == job.generation else { return }
             joinProgress = 1
+            lastJoinedURL = writtenURL
             if usesManagedDefaultOutput {
                 outputURL = writtenURL
             }
@@ -542,12 +551,15 @@ final class JoinViewModel: ObservableObject {
             refreshManagedDefaultOutputNameIfNeeded()
         } catch is CancellationError {
             guard joinGeneration == job.generation else { return }
+            lastJoinedURL = nil
             statusMessage = JoinExporterError.cancelled.errorDescription
         } catch let error as JoinExporterError where error == .cancelled {
             guard joinGeneration == job.generation else { return }
+            lastJoinedURL = nil
             statusMessage = error.errorDescription
         } catch {
             guard joinGeneration == job.generation else { return }
+            lastJoinedURL = nil
             statusMessage = error.localizedDescription
         }
     }

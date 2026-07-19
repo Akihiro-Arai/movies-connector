@@ -14,12 +14,8 @@ struct JoinView: View {
             outputRow
             actionsRow
 
-            if let status = viewModel.statusMessage {
-                Text(status)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-                    .accessibilityLabel(status)
+            if viewModel.statusMessage != nil || viewModel.canRevealLastJoined {
+                statusRow
             }
 
             debugLogPanel
@@ -27,7 +23,7 @@ struct JoinView: View {
         .padding(24)
         .frame(minWidth: 720, minHeight: 560)
         .environment(\.locale, settings.effectiveLocale)
-        // String identifiers include Photos file-promise pasteboard types that UTType may omit.
+        // Finder-only: `public.file-url` (#26). Photos / file promises are not accepted.
         .onDrop(
             of: MovieDropItemLoader.dropAcceptedTypeIdentifiers,
             delegate: JoinDropDelegate(viewModel: viewModel)
@@ -119,16 +115,42 @@ struct JoinView: View {
                 .truncationMode(.middle)
                 .foregroundStyle(viewModel.outputURL == nil ? .secondary : .primary)
                 .textSelection(.enabled)
-                .help(viewModel.outputDisplayPath)
+                .help(viewModel.outputFullPath)
                 .accessibilityLabel(
                     Text("ui.output.a11y \(viewModel.outputDisplayPath)")
                 )
             Spacer(minLength: 8)
+            if viewModel.outputURL != nil {
+                Button("ui.show_in_finder") {
+                    viewModel.revealOutputInFinder()
+                }
+                .disabled(viewModel.isJoining)
+                .accessibilityLabel(Text("ui.show_in_finder.a11y"))
+            }
             Button("ui.choose") {
                 Task { await viewModel.chooseOutputDestination() }
             }
             .disabled(!viewModel.isMutationEnabled)
             .accessibilityLabel(Text("ui.choose.a11y"))
+        }
+    }
+
+    private var statusRow: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 12) {
+            if let status = viewModel.statusMessage {
+                Text(status)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .accessibilityLabel(status)
+            }
+            Spacer(minLength: 8)
+            if viewModel.canRevealLastJoined {
+                Button("ui.show_in_finder") {
+                    viewModel.revealLastJoinedInFinder()
+                }
+                .accessibilityLabel(Text("ui.show_joined_in_finder.a11y"))
+            }
         }
     }
 
@@ -210,16 +232,13 @@ struct JoinView: View {
     }
 }
 
-/// Accepts Finder file URLs and Photos `NSFilePromiseReceiver` drops.
+/// Accepts Finder `public.file-url` drops only (#26).
 /// Multiple drops can run concurrently — each gets its own pending Loading… row.
 private struct JoinDropDelegate: DropDelegate {
     let viewModel: JoinViewModel
 
     func validateDrop(info: DropInfo) -> Bool {
         guard !viewModel.isJoining else { return false }
-        if MovieDropItemLoader.dragPasteboardHasFilePromises() {
-            return true
-        }
         let providers = info.itemProviders(for: MovieDropItemLoader.dropAcceptedTypeIdentifiers)
         return !providers.isEmpty
     }
@@ -236,39 +255,29 @@ private struct JoinDropDelegate: DropDelegate {
             return false
         }
 
-        // Placeholder row immediately so the next video can be dropped while this one loads.
-        let importID = viewModel.beginDropImport()
-
-        // Must snapshot promises before this function returns — drag pasteboard clears after.
-        let promiseReceivers = MovieDropItemLoader.snapshotFilePromiseReceiversFromDragPasteboard(
-            diagnostics: diagnostics
-        )
         let providers = info.itemProviders(for: MovieDropItemLoader.dropAcceptedTypeIdentifiers)
         diagnostics.log("itemProviders count=\(providers.count)")
         diagnostics.log(
             "acceptedTypeIdentifiers=\(MovieDropItemLoader.dropAcceptedTypeIdentifiers.joined(separator: ", "))"
         )
 
-        if let suggested = promiseReceivers.lazy
-            .compactMap({ $0.fileNames.first })
+        guard !providers.isEmpty else {
+            diagnostics.log("ABORT no public.file-url providers (Photos/promise-only drag rejected)")
+            return false
+        }
+
+        // Placeholder row immediately so the next video can be dropped while this one loads.
+        let importID = viewModel.beginDropImport()
+        if let suggested = providers.lazy
+            .compactMap(\.suggestedName)
             .first(where: { !$0.isEmpty })
         {
             viewModel.updateDropImportTitle(id: importID, title: suggested)
         }
 
-        guard !promiseReceivers.isEmpty || !providers.isEmpty else {
-            diagnostics.log("ABORT no promise receivers and no providers")
-            viewModel.completeDropImport(
-                id: importID,
-                outcome: DropLoadOutcome(urls: [], diagnostics: diagnostics)
-            )
-            return false
-        }
-
         let task = Task {
             let outcome = await MovieDropItemLoader.loadURLsFromCurrentDrop(
                 providers: providers,
-                promiseReceivers: promiseReceivers,
                 diagnostics: diagnostics
             )
             await MainActor.run {
@@ -331,10 +340,16 @@ private struct JoinQueueRow: View {
                     .font(.body.weight(.medium))
                     .lineLimit(1)
                     .help(item.url.path)
-                Text(compatibilityLabel)
-                    .font(.caption)
-                    .foregroundStyle(compatibilityColor)
-                    .lineLimit(2)
+                HStack(spacing: 6) {
+                    if case .inspecting = item.compatibility {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                    Text(compatibilityLabel)
+                        .font(.caption)
+                        .foregroundStyle(compatibilityColor)
+                        .lineLimit(2)
+                }
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel(accessibilitySummary)

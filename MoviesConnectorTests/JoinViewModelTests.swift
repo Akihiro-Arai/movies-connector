@@ -3,13 +3,27 @@ import XCTest
 
 @MainActor
 final class JoinViewModelTests: XCTestCase {
-    func testDropCopyDisplayNameStripsUUIDPrefix() {
-        let url = URL(
-            fileURLWithPath:
-                "/tmp/724EDF5B-DAF2-4774-B40D-9F9E115449F4-IMG_3765.MOV"
+    func testDisplayNameUsesLastPathComponent() {
+        let url = URL(fileURLWithPath: "/tmp/clip.mov")
+        XCTAssertEqual(JoinQueueItem.preferredDisplayName(for: url), "clip.mov")
+        XCTAssertEqual(JoinQueueItem(url: url).displayName, "clip.mov")
+    }
+
+    func testAbbreviatedPathReplacesHomeWithTilde() {
+        let home = NSHomeDirectory()
+        let url = URL(fileURLWithPath: home)
+            .appendingPathComponent("Movies")
+            .appendingPathComponent("Movies Connector")
+            .appendingPathComponent("joined.mov")
+        XCTAssertEqual(
+            JoinViewModel.abbreviatedPath(for: url),
+            "~/Movies/Movies Connector/joined.mov"
         )
-        XCTAssertEqual(JoinQueueItem.preferredDisplayName(for: url), "IMG_3765.MOV")
-        XCTAssertEqual(JoinQueueItem(url: url).displayName, "IMG_3765.MOV")
+        XCTAssertEqual(JoinViewModel.abbreviatedPath(for: URL(fileURLWithPath: home)), "~")
+        XCTAssertEqual(
+            JoinViewModel.abbreviatedPath(for: URL(fileURLWithPath: "/tmp/out.mov")),
+            "/tmp/out.mov"
+        )
     }
 
     func testPrepareDefaultOutputUsesMoviesConnectorFolder() throws {

@@ -13,12 +13,51 @@ protocol AssetInspecting: Sendable {
     func inspect(url: URL) async throws -> JoinInspectionResult
 }
 
+enum AssetInspectionTimeoutError: Error, LocalizedError {
+    case timedOut(URL)
+
+    var errorDescription: String? {
+        switch self {
+        case .timedOut(let url):
+            return L10n.string("status.inspect_timeout \(url.lastPathComponent)")
+        }
+    }
+}
+
 /// Production inspector seam — wraps `AssetInspector` without modifying Media/.
 struct DefaultAssetInspector: AssetInspecting {
+    /// AVFoundation can hang forever on some assets; bound the wait.
+    static var inspectTimeout: TimeInterval = 45
+    static var inspectTimeoutForTesting: TimeInterval?
+
+    static func resetForTesting() {
+        inspectTimeoutForTesting = nil
+        inspectTimeout = 45
+    }
+
     func inspect(url: URL) async throws -> JoinInspectionResult {
+        let timeout = Self.inspectTimeoutForTesting ?? Self.inspectTimeout
+        return try await withThrowingTaskGroup(of: JoinInspectionResult.self) { group in
+            group.addTask {
+                try await Self.inspectUnbounded(url: url)
+            }
+            group.addTask {
+                let ns = UInt64(max(timeout, 0.1) * 1_000_000_000)
+                try await Task.sleep(nanoseconds: ns)
+                try Task.checkCancellation()
+                throw AssetInspectionTimeoutError.timedOut(url)
+            }
+            let result = try await group.next()!
+            group.cancelAll()
+            return result
+        }
+    }
+
+    private static func inspectUnbounded(url: URL) async throws -> JoinInspectionResult {
         try await UserSelectedURLAccess.withPreparedAccess(to: url) {
             let asset = AVURLAsset(url: url)
             let duration = try await asset.load(.duration)
+            try Task.checkCancellation()
             let seconds: TimeInterval
             if duration.isValid && !duration.isIndefinite {
                 seconds = duration.seconds
@@ -26,6 +65,7 @@ struct DefaultAssetInspector: AssetInspecting {
                 seconds = 0
             }
             let signature = try await AssetInspector.makeSignature(for: asset)
+            try Task.checkCancellation()
             return JoinInspectionResult(duration: seconds, signature: signature)
         }
     }

@@ -46,15 +46,15 @@
     "ui.subtitle" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drop videos from Finder or Photos, or add them below. Order in the list is the join order." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Finder や写真アプリから動画をドロップするか、下のボタンで追加してください。リストの順番が結合順です。" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drop videos from Finder, or add them below. Order in the list is the join order." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Finder から動画をドロップするか、下のボタンで追加してください。リストの順番が結合順です。" } }
       }
     },
     "ui.empty.title" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drop videos from Finder or Photos" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Finder や写真アプリから動画をドロップ" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drop videos from Finder" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Finder から動画をドロップ" } }
       }
     },
     "ui.empty.hint" : {
@@ -67,8 +67,8 @@
     "ui.empty.a11y" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drop videos from Finder or Photos, or use Add Videos" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Finder や写真アプリから動画をドロップするか、「動画を追加」を使用" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drop videos from Finder, or use Add Videos" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Finder から動画をドロップするか、「動画を追加」を使用" } }
       }
     },
     "ui.output" : {
@@ -97,6 +97,27 @@
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Choose…" } },
         "ja" : { "stringUnit" : { "state" : "translated", "value" : "選択…" } }
+      }
+    },
+    "ui.show_in_finder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Show in Finder" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Finder で表示" } }
+      }
+    },
+    "ui.show_in_finder.a11y" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Show output destination in Finder" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "出力先を Finder で表示" } }
+      }
+    },
+    "ui.show_joined_in_finder.a11y" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Show joined video in Finder" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "結合した動画を Finder で表示" } }
       }
     },
     "ui.choose.a11y" : {
@@ -186,8 +207,8 @@
     "ui.debug.placeholder" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drop a video (Finder or Photos). A full transcript will appear here — select text or use Copy." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "動画をドロップするとここに詳細ログが表示されます。テキストを選択するか「コピー」を使えます。" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drop a video from Finder. A full transcript will appear here — select text or use Copy." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Finder から動画をドロップするとここに詳細ログが表示されます。テキストを選択するか「コピー」を使えます。" } }
       }
     },
     "ui.loading" : {
@@ -235,8 +256,22 @@
     "status.drop_empty" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not read the dropped item. For Photos, drop a video (not a still photo)." } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ドロップした項目を読み取れませんでした。写真アプリからは静止画ではなく動画をドロップしてください。" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not read the dropped item. Drop a movie file from Finder, or use Add Videos." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "ドロップした項目を読み取れませんでした。Finder から動画ファイルをドロップするか、「動画を追加」を使ってください。" } }
+      }
+    },
+    "status.drop_timeout" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Drop timed out while waiting for Finder to provide the file. Try again, or use Add Videos." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Finder からのファイル受け渡しがタイムアウトしました。もう一度試すか、「動画を追加」を使ってください。" } }
+      }
+    },
+    "status.inspect_timeout %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Timed out while inspecting %@. Try Add Videos, or drop again." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "%@ の検査がタイムアウトしました。「動画を追加」か、ドロップをやり直してください。" } }
       }
     },
     "status.joined %lld %@" : {

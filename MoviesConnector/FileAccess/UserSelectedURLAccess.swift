@@ -89,9 +89,8 @@ enum UserSelectedURLAccess {
     }
 
     /// Security-scoped access is only required for files outside the app container that
-    /// are not already readable (e.g. open/save panel picks). Photos / file-promise drops
-    /// are copied into the container first — those must not demand a security scope.
-    /// Movies-folder paths are covered by `com.apple.security.assets.movies.read-write`.
+    /// are not already readable (e.g. open/save panel picks). Readable Finder drops and
+    /// Movies-folder paths (`com.apple.security.assets.movies.read-write`) skip the scope.
     static func requiresSecurityScopedAccess(for url: URL) -> Bool {
         guard url.isFileURL else { return true }
         if isAppManagedFileURL(url) {
