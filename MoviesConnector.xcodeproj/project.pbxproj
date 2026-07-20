@@ -47,6 +47,7 @@
 		A10000000000000000000028 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000028 /* SettingsView.swift */; };
 		A10000000000000000000029 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000029 /* Localizable.xcstrings */; };
 		A1000000000000000000002A /* AppLanguageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002A /* AppLanguageTests.swift */; };
+		A1000000000000000000002C /* DesktopDebugJoinTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000000000000000000002C /* DesktopDebugJoinTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -100,6 +101,7 @@
 		A20000000000000000000028 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A20000000000000000000029 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		A2000000000000000000002A /* AppLanguageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguageTests.swift; sourceTree = "<group>"; };
+		A2000000000000000000002C /* DesktopDebugJoinTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopDebugJoinTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000009 /* MoviesConnector.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MoviesConnector.entitlements; sourceTree = "<group>"; };
 		A2000000000000000000000A /* MoviesConnector.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MoviesConnector.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A2000000000000000000000B /* MoviesConnectorTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MoviesConnectorTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -166,6 +168,7 @@
 				A20000000000000000000021 /* MovieDropItemLoaderTests.swift */,
 				A20000000000000000000025 /* DefaultOutputDirectoryTests.swift */,
 				A2000000000000000000002A /* AppLanguageTests.swift */,
+				A2000000000000000000002C /* DesktopDebugJoinTests.swift */,
 			);
 			path = MoviesConnectorTests;
 			sourceTree = "<group>";
@@ -382,6 +385,7 @@
 				A10000000000000000000021 /* MovieDropItemLoaderTests.swift in Sources */,
 				A10000000000000000000025 /* DefaultOutputDirectoryTests.swift in Sources */,
 				A1000000000000000000002A /* AppLanguageTests.swift in Sources */,
+				A1000000000000000000002C /* DesktopDebugJoinTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

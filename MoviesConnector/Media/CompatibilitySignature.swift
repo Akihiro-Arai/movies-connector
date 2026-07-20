@@ -275,7 +275,7 @@ enum CompatibilityComparer {
         if lhs.videoPreferredTransform != rhs.videoPreferredTransform {
             results.append(.videoPreferredTransform)
         }
-        if lhs.videoFrameDuration != rhs.videoFrameDuration {
+        if !frameDurationsCompatible(lhs.videoFrameDuration, rhs.videoFrameDuration) {
             results.append(
                 .videoFrameDuration(
                     lhs.videoFrameDuration.map { "\($0.value)/\($0.timescale)" },
@@ -320,6 +320,33 @@ enum CompatibilityComparer {
             return true
         case let (a?, b?):
             return abs(a - b) < 0.000_001
+        default:
+            return false
+        }
+    }
+
+    /// Relative tolerance for iPhone-style 30fps jitter (e.g. 19/600 vs 20/600 ≈ 5%).
+    /// Larger gaps (30 vs 24 fps) still reject.
+    static var frameDurationRelativeTolerance: Double = 0.06
+
+    private static func frameDurationsCompatible(
+        _ lhs: CompatibilitySignature.Rational?,
+        _ rhs: CompatibilitySignature.Rational?
+    ) -> Bool {
+        switch (lhs, rhs) {
+        case (nil, nil):
+            return true
+        case let (left?, right?):
+            guard left.timescale > 0, right.timescale > 0 else {
+                return left == right
+            }
+            let leftSeconds = Double(left.value) / Double(left.timescale)
+            let rightSeconds = Double(right.value) / Double(right.timescale)
+            guard leftSeconds > 0, rightSeconds > 0 else {
+                return left == right
+            }
+            let relative = abs(leftSeconds - rightSeconds) / max(leftSeconds, rightSeconds)
+            return relative <= frameDurationRelativeTolerance
         default:
             return false
         }

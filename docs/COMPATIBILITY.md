@@ -30,7 +30,7 @@ Implementation types: `MoviesConnector/Media/CompatibilitySignature.swift`, `Ass
 | `videoCodec` | `CMFormatDescription` media subtype FourCC | ISO-Latin1 FourCC → trim whitespace → **lowercase** (e.g. `hvc1`, `avc1`, `apcn`) |
 | `videoDisplayWidth` / `videoDisplayHeight` | `naturalSize` × `preferredTransform` | Absolute values, rounded to `Int` (display pixels) |
 | `videoPreferredTransform` | `AVAssetTrack.preferredTransform` | Components `a,b,c,d,tx,ty` quantized to **6 decimal places** |
-| `videoFrameDuration` | Prefer `minFrameDuration`; else `1 / nominalFrameRate` | Reduced `value/timescale` rational |
+| `videoFrameDuration` | Prefer `minFrameDuration`; else `1 / nominalFrameRate` | Reduced `value/timescale` rational; compare as seconds with **relative tolerance 6%** (allows iPhone ~30fps jitter such as `19/600` vs `20/600`; rejects 30 vs 24) |
 | `videoTimescale` | Primary video track `AVAssetTrack.naturalTimeScale` | `Int32`; must match exactly (not `timeRange.start.timescale`) |
 
 ### Audio (per track index `i` in `audioTracks`)
