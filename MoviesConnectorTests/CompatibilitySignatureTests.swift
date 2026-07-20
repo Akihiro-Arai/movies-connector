@@ -170,6 +170,17 @@ final class CompatibilitySignatureTests: XCTestCase {
         )
     }
 
+    func testNearThirtyFPSFrameDurationsAreTolerated() {
+        var a = sampleSignature()
+        var b = sampleSignature()
+        // Desktop iPhone set: 19/600 ≈ 31.6fps vs 20/600 = 30fps (~5%).
+        a.videoFrameDuration = CompatibilitySignature.Rational(value: 19, timescale: 600)
+        b.videoFrameDuration = CompatibilitySignature.Rational(value: 20, timescale: 600)
+
+        XCTAssertTrue(CompatibilityComparer.mismatches(between: a, and: b).isEmpty)
+        XCTAssertTrue(CompatibilityComparer.areCompatible(a, b))
+    }
+
     func testVideoTimescaleMismatchIsRejected() {
         var a = sampleSignature()
         var b = sampleSignature()
