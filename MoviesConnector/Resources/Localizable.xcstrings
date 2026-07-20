@@ -589,32 +589,32 @@
         "ja" : { "stringUnit" : { "state" : "translated", "value" : "タイムスケールが一致しません（%1$@ と %2$@）" } }
       }
     },
-    "compat.audio_codec %@ %@" : {
+    "compat.audio_codec %lld %@ %@" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Audio codec mismatch (%1$@ vs %2$@)" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "オーディオコーデックが一致しません（%1$@ と %2$@）" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Audio track[%1$lld] codec mismatch (%2$@ vs %3$@)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "オーディオトラック[%1$lld]のコーデックが一致しません（%2$@ と %3$@）" } }
       }
     },
-    "compat.audio_sample_rate %@ %@" : {
+    "compat.audio_sample_rate %lld %@ %@" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Audio sample rate mismatch (%1$@ vs %2$@)" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "サンプルレートが一致しません（%1$@ と %2$@）" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Audio track[%1$lld] sample rate mismatch (%2$@ vs %3$@)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "オーディオトラック[%1$lld]のサンプルレートが一致しません（%2$@ と %3$@）" } }
       }
     },
-    "compat.audio_channel_count %@ %@" : {
+    "compat.audio_channel_count %lld %@ %@" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Audio channel count mismatch (%1$@ vs %2$@)" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "チャンネル数が一致しません（%1$@ と %2$@）" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Audio track[%1$lld] channel count mismatch (%2$@ vs %3$@)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "オーディオトラック[%1$lld]のチャンネル数が一致しません（%2$@ と %3$@）" } }
       }
     },
-    "compat.audio_format_flags %@ %@" : {
+    "compat.audio_format_flags %lld %@ %@" : {
       "extractionState" : "manual",
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Audio format flags mismatch (%1$@ vs %2$@)" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "オーディオ形式フラグが一致しません（%1$@ と %2$@）" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Audio track[%1$lld] format flags mismatch (%2$@ vs %3$@)" } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "オーディオトラック[%1$lld]の形式フラグが一致しません（%2$@ と %3$@）" } }
       }
     },
     "compat.asset_unsupported_tracks" : {
@@ -629,13 +629,6 @@
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Asset must have exactly 1 video track (found %lld)" } },
         "ja" : { "stringUnit" : { "state" : "translated", "value" : "ビデオトラックはちょうど 1 本である必要があります（%lld 本）" } }
-      }
-    },
-    "compat.asset_audio_track_count %lld" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Asset must have at most 1 audio track (found %lld)" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "オーディオトラックは最大 1 本です（%lld 本）" } }
       }
     },
     "compat.reference_unavailable" : {
@@ -678,20 +671,6 @@
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "candidate must have exactly 1 video track (found %lld)" } },
         "ja" : { "stringUnit" : { "state" : "translated", "value" : "候補はビデオトラック 1 本である必要があります（%lld 本）" } }
-      }
-    },
-    "compat.reference_audio_track_count %lld" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "reference must have at most 1 audio track (found %lld)" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "基準のオーディオトラックは最大 1 本です（%lld 本）" } }
-      }
-    },
-    "compat.candidate_audio_track_count %lld" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "candidate must have at most 1 audio track (found %lld)" } },
-        "ja" : { "stringUnit" : { "state" : "translated", "value" : "候補のオーディオトラックは最大 1 本です（%lld 本）" } }
       }
     }
   },

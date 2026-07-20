@@ -62,6 +62,8 @@ enum JoinExporter {
     static var afterDestinationExistenceCheckForTesting: (@Sendable (URL) throws -> Void)?
     /// Invoked immediately before composition track loading (cancellation injection).
     static var beforeBuildTracksLoadForTesting: (@Sendable () async throws -> Void)?
+    /// Observes the built composition before passthrough export (audio-track mapping tests).
+    static var didBuildCompositionForTesting: (@Sendable (AVMutableComposition) -> Void)?
 
     static func resetForTesting() {
         exportBodyForTesting = nil
@@ -71,6 +73,7 @@ enum JoinExporter {
         didCreateTempURLForTesting = nil
         afterDestinationExistenceCheckForTesting = nil
         beforeBuildTracksLoadForTesting = nil
+        didBuildCompositionForTesting = nil
     }
 
     /// Joins `inputURLs` in exact caller order to `outputURL` using passthrough export.
@@ -252,7 +255,8 @@ enum JoinExporter {
             throw JoinExporterError.cannotCreateComposition
         }
 
-        var compositionAudio: AVMutableCompositionTrack?
+        var compositionAudioTracks: [AVMutableCompositionTrack] = []
+        var expectedAudioTrackCount: Int?
         var cursor = CMTime.zero
 
         for url in inputURLs {
@@ -275,6 +279,7 @@ enum JoinExporter {
 
             try Task.checkCancellation()
             let videoTrack = try firstTrack(in: tracks, mediaType: .video)
+            let sourceAudioTracks = tracks.filter { $0.mediaType == .audio }
             let duration: CMTime
             do {
                 duration = try await asset.load(.duration)
@@ -293,15 +298,35 @@ enum JoinExporter {
                 compositionVideo.preferredTransform = preferredTransform
             }
 
-            if let audioTrack = optionalTrack(in: tracks, mediaType: .audio) {
-                if compositionAudio == nil {
-                    compositionAudio = composition.addMutableTrack(
-                        withMediaType: .audio,
-                        preferredTrackID: kCMPersistentTrackID_Invalid
-                    )
+            if let expectedAudioTrackCount {
+                guard sourceAudioTracks.count == expectedAudioTrackCount else {
+                    throw JoinExporterError.incompatible([
+                        "file[\(url.lastPathComponent)]: audio track count \(sourceAudioTracks.count) vs expected \(expectedAudioTrackCount)",
+                    ])
                 }
+            } else {
+                expectedAudioTrackCount = sourceAudioTracks.count
+                compositionAudioTracks.reserveCapacity(sourceAudioTracks.count)
+                for _ in sourceAudioTracks.indices {
+                    guard
+                        let compositionAudio = composition.addMutableTrack(
+                            withMediaType: .audio,
+                            preferredTrackID: kCMPersistentTrackID_Invalid
+                        )
+                    else {
+                        throw JoinExporterError.cannotCreateComposition
+                    }
+                    compositionAudioTracks.append(compositionAudio)
+                }
+            }
+
+            for (index, sourceAudio) in sourceAudioTracks.enumerated() {
                 do {
-                    try compositionAudio?.insertTimeRange(timeRange, of: audioTrack, at: cursor)
+                    try compositionAudioTracks[index].insertTimeRange(
+                        timeRange,
+                        of: sourceAudio,
+                        at: cursor
+                    )
                 } catch {
                     throw JoinExporterError.cannotCreateComposition
                 }
@@ -310,6 +335,7 @@ enum JoinExporter {
             cursor = CMTimeAdd(cursor, duration)
         }
 
+        didBuildCompositionForTesting?(composition)
         return BuiltComposition(composition: composition, expectedDuration: cursor)
     }
 
@@ -624,9 +650,5 @@ enum JoinExporter {
             return track
         }
         throw JoinExporterError.exportFailed("Missing \(mediaType.rawValue) track")
-    }
-
-    private static func optionalTrack(in tracks: [AVAssetTrack], mediaType: AVMediaType) -> AVAssetTrack? {
-        tracks.first(where: { $0.mediaType == mediaType })
     }
 }

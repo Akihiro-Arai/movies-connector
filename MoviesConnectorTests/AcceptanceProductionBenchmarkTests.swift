@@ -73,7 +73,7 @@ final class AcceptanceProductionBenchmarkTests: XCTestCase {
                 "\(url.lastPathComponent): bytes=\(bytes) duration_s=\(duration.seconds) " +
                     "codec=\(signature.videoCodec ?? "nil") " +
                     "size=\(signature.videoDisplayWidth)x\(signature.videoDisplayHeight) " +
-                    "audio=\(signature.audioCodec ?? "nil") " +
+                    "audio=\(signature.audioTracks.first?.codec ?? "nil") " +
                     "tracks=v\(signature.videoTrackCount)/a\(signature.audioTrackCount)"
             )
         }
@@ -210,18 +210,16 @@ final class AcceptanceProductionBenchmarkTests: XCTestCase {
     func testTargetEligibilityRejects720pSurrogateAndKpi20PresetShape() {
         let surrogate720 = CompatibilitySignature(
             videoTrackCount: 1,
-            audioTrackCount: 1,
+            audioTracks: [
+                .init(codec: "aac", sampleRate: 48_000, channelCount: 2, formatFlags: nil),
+            ],
             hasUnsupportedTracks: false,
             videoCodec: "avc1",
             videoDisplayWidth: 1280,
             videoDisplayHeight: 720,
             videoPreferredTransform: .identity,
             videoFrameDuration: .init(value: 1, timescale: 30),
-            videoTimescale: 30,
-            audioCodec: "aac",
-            audioSampleRate: 48_000,
-            audioChannelCount: 2,
-            audioFormatFlags: nil
+            videoTimescale: 30
         )
         let signatures = Array(repeating: surrogate720, count: 10)
         // ~1.22 GB practical set
@@ -252,18 +250,16 @@ final class AcceptanceProductionBenchmarkTests: XCTestCase {
 
         let fourK = CompatibilitySignature(
             videoTrackCount: 1,
-            audioTrackCount: 1,
+            audioTracks: [
+                .init(codec: "aac", sampleRate: 48_000, channelCount: 2, formatFlags: nil),
+            ],
             hasUnsupportedTracks: false,
             videoCodec: "hvc1",
             videoDisplayWidth: 3840,
             videoDisplayHeight: 2160,
             videoPreferredTransform: .identity,
             videoFrameDuration: .init(value: 1, timescale: 30),
-            videoTimescale: 30,
-            audioCodec: "aac",
-            audioSampleRate: 48_000,
-            audioChannelCount: 2,
-            audioFormatFlags: nil
+            videoTimescale: 30
         )
         let target = TargetWorkloadEligibility.evaluate(
             inputCount: 10,
@@ -343,7 +339,7 @@ final class AcceptanceProductionBenchmarkTests: XCTestCase {
         emit(
             "output_signature=codec=\(outputSignature.videoCodec ?? "nil") " +
                 "size=\(outputSignature.videoDisplayWidth)x\(outputSignature.videoDisplayHeight) " +
-                "audio=\(outputSignature.audioCodec ?? "nil") " +
+                "audio=\(outputSignature.audioTracks.first?.codec ?? "nil") " +
                 "tracks=v\(outputSignature.videoTrackCount)/a\(outputSignature.audioTrackCount) " +
                 "unsupported=\(outputSignature.hasUnsupportedTracks)"
         )
@@ -411,11 +407,12 @@ final class AcceptanceProductionBenchmarkTests: XCTestCase {
         XCTAssertEqual(Int(abs(display.width).rounded()), reference.videoDisplayWidth, "\(label) width")
         XCTAssertEqual(Int(abs(display.height).rounded()), reference.videoDisplayHeight, "\(label) height")
 
-        if reference.audioTrackCount > 0 {
-            let audio = try XCTUnwrap(audioTracks.first, "\(label) missing audio")
+        XCTAssertEqual(audioTracks.count, reference.audioTracks.count, "\(label) audio track signatures")
+        for (index, expected) in reference.audioTracks.enumerated() {
+            let audio = audioTracks[index]
             let audioFormats = try await audio.load(.formatDescriptions)
-            XCTAssertFalse(audioFormats.isEmpty, "\(label) missing audio format description")
-            XCTAssertEqual(fourCC(audioFormats.first), reference.audioCodec, "\(label) audio FourCC")
+            XCTAssertFalse(audioFormats.isEmpty, "\(label) missing audio[\(index)] format description")
+            XCTAssertEqual(fourCC(audioFormats.first), expected.codec, "\(label) audio[\(index)] FourCC")
         }
     }
 

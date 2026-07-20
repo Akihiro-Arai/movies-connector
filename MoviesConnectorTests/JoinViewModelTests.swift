@@ -225,6 +225,27 @@ final class JoinViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.items.map(\.compatibility), [.compatible, .compatible])
     }
 
+    func testMatchingDualAudioSignaturesEnableCompatibleJoin() async {
+        let dualTracks: [CompatibilitySignature.AudioTrackSignature] = [
+            .init(codec: "aac", sampleRate: 48_000, channelCount: 2, formatFlags: 0),
+            .init(codec: "apac", sampleRate: 48_000, channelCount: 2, formatFlags: 0),
+        ]
+        let a = URL(fileURLWithPath: "/tmp/dual-a.mov")
+        let b = URL(fileURLWithPath: "/tmp/dual-b.mov")
+        let inspector = MockAssetInspector(results: [
+            a: .success(Self.inspection(duration: 1, width: 320, audioTracks: dualTracks)),
+            b: .success(Self.inspection(duration: 2, width: 320, audioTracks: dualTracks)),
+        ])
+        let viewModel = makeViewModel(inspector: inspector)
+
+        viewModel.addURLs([a, b])
+        await waitUntil(viewModel) { $0.items.allSatisfy { $0.compatibility == .compatible } }
+        viewModel.setOutputURLForTesting(URL(fileURLWithPath: "/tmp/out.mov"))
+
+        XCTAssertEqual(viewModel.items.map(\.compatibility), [.compatible, .compatible])
+        XCTAssertTrue(viewModel.canJoin)
+    }
+
     func testCanJoinDisabledWhenEmptyInspectingIncompatibleOrMissingOutput() async {
         let a = URL(fileURLWithPath: "/tmp/a.mov")
         let b = URL(fileURLWithPath: "/tmp/b.mov")
@@ -787,23 +808,23 @@ final class JoinViewModelTests: XCTestCase {
         XCTFail("Condition not met before timeout")
     }
 
-    private static func inspection(duration: TimeInterval, width: Int) -> JoinInspectionResult {
+    private static func inspection(
+        duration: TimeInterval,
+        width: Int,
+        audioTracks: [CompatibilitySignature.AudioTrackSignature] = []
+    ) -> JoinInspectionResult {
         JoinInspectionResult(
             duration: duration,
             signature: CompatibilitySignature(
                 videoTrackCount: 1,
-                audioTrackCount: 0,
+                audioTracks: audioTracks,
                 hasUnsupportedTracks: false,
                 videoCodec: "avc1",
                 videoDisplayWidth: width,
                 videoDisplayHeight: 240,
                 videoPreferredTransform: .identity,
                 videoFrameDuration: .init(value: 1, timescale: 30),
-                videoTimescale: 30,
-                audioCodec: nil,
-                audioSampleRate: nil,
-                audioChannelCount: nil,
-                audioFormatFlags: nil
+                videoTimescale: 30
             )
         )
     }

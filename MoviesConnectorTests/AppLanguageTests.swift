@@ -45,4 +45,22 @@ final class AppLanguageTests: XCTestCase {
             "表示サイズが一致しません（1920x1080 と 1280x720）"
         )
     }
+
+    func testAudioTrackMismatchLocalizesWithTrackIndex() {
+        let defaults = UserDefaults(suiteName: "MoviesConnectorTests.lang.\(UUID().uuidString)")!
+        AppLanguageStore.defaultsForTesting = defaults
+
+        let mismatch = CompatibilityMismatch.audioCodec(track: 1, "apac", "aac")
+        AppSettings.shared.language = .english
+        XCTAssertEqual(
+            mismatch.description,
+            "Audio track[1] codec mismatch (apac vs aac)"
+        )
+
+        AppSettings.shared.language = .japanese
+        XCTAssertEqual(
+            mismatch.localizedDescription,
+            "オーディオトラック[1]のコーデックが一致しません（apac と aac）"
+        )
+    }
 }

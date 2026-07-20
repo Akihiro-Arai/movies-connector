@@ -23,74 +23,125 @@ final class CompatibilitySignatureTests: XCTestCase {
     func testAudioTrackCountMismatchIsRejected() {
         var a = sampleSignature()
         var b = sampleSignature()
-        a.audioTrackCount = 1
-        b.audioTrackCount = 0
-        b.audioCodec = nil
-        b.audioSampleRate = nil
-        b.audioChannelCount = nil
-        b.audioFormatFlags = nil
+        b.audioTracks = []
 
         let mismatches = CompatibilityComparer.mismatches(between: a, and: b)
         XCTAssertTrue(mismatches.contains(.audioTrackCount(1, 0)))
     }
 
-    func testMultiAudioOnReferenceIsUnsupportedTopology() {
-        var reference = sampleSignature()
-        var candidate = sampleSignature()
-        reference.audioTrackCount = 2
-        candidate.audioTrackCount = 2
-
-        let mismatches = CompatibilityComparer.mismatches(between: reference, and: candidate)
-        XCTAssertTrue(
-            mismatches.contains(
-                .unsupportedTopology("reference must have at most 1 audio track (found 2)")
-            )
-        )
-        XCTAssertTrue(
-            mismatches.contains(
-                .unsupportedTopology("candidate must have at most 1 audio track (found 2)")
-            )
-        )
-        XCTAssertFalse(CompatibilityComparer.areCompatible(reference, candidate))
+    func testMatchingTwoAudioSignaturesAreCompatible() {
+        let a = dualAudioSignature()
+        let b = dualAudioSignature()
+        XCTAssertEqual(a.audioTrackCount, 2)
+        XCTAssertTrue(CompatibilityComparer.areCompatible(a, b))
+        XCTAssertTrue(CompatibilityComparer.mismatches(between: a, and: b).isEmpty)
     }
 
-    func testMultiAudioOnCandidateOnlyIsUnsupportedTopology() {
-        var reference = sampleSignature()
-        var candidate = sampleSignature()
-        reference.audioTrackCount = 1
-        candidate.audioTrackCount = 3
+    func testTwoVersusOneAudioTrackCountIsRejected() {
+        let reference = dualAudioSignature()
+        let candidate = sampleSignature()
 
         let mismatches = CompatibilityComparer.mismatches(between: reference, and: candidate)
-        XCTAssertTrue(
-            mismatches.contains(
-                .unsupportedTopology("candidate must have at most 1 audio track (found 3)")
-            )
-        )
-        XCTAssertTrue(mismatches.contains(.audioTrackCount(1, 3)))
+        XCTAssertTrue(mismatches.contains(.audioTrackCount(2, 1)))
         XCTAssertFalse(
             mismatches.contains(where: {
                 if case .unsupportedTopology(let detail) = $0 {
-                    return detail.contains("reference must have at most 1 audio track")
+                    return detail.contains("at most 1 audio track")
                 }
                 return false
             })
         )
     }
 
-    func testSingleInputStyleSignatureRejectsMultiAudioAgainstItself() {
-        var signature = sampleSignature()
-        signature.audioTrackCount = 2
-        let mismatches = CompatibilityComparer.mismatches(between: signature, and: signature)
-        XCTAssertTrue(
-            mismatches.contains(
-                .unsupportedTopology("reference must have at most 1 audio track (found 2)")
-            )
+    func testSecondAudioTrackCodecMismatchIdentifiesTrack() {
+        var reference = dualAudioSignature()
+        var candidate = dualAudioSignature()
+        candidate.audioTracks[1].codec = "aac"
+
+        let mismatches = CompatibilityComparer.mismatches(between: reference, and: candidate)
+        XCTAssertTrue(mismatches.contains(.audioCodec(track: 1, "apac", "aac")))
+        XCTAssertEqual(
+            CompatibilityMismatch.audioCodec(track: 1, "apac", "aac").description,
+            "Audio track[1] codec mismatch (apac vs aac)"
         )
-        XCTAssertTrue(
-            mismatches.contains(
-                .unsupportedTopology("candidate must have at most 1 audio track (found 2)")
-            )
-        )
+        XCTAssertFalse(mismatches.contains(where: {
+            if case .audioCodec(let track, _, _) = $0 { return track == 0 }
+            return false
+        }))
+    }
+
+    func testZeroAudioSignaturesRemainCompatible() {
+        let a = zeroAudioSignature()
+        let b = zeroAudioSignature()
+        XCTAssertEqual(a.audioTrackCount, 0)
+        XCTAssertTrue(CompatibilityComparer.areCompatible(a, b))
+    }
+
+    func testOneAudioSignaturesRemainCompatible() {
+        let a = sampleSignature()
+        let b = sampleSignature()
+        XCTAssertEqual(a.audioTrackCount, 1)
+        XCTAssertTrue(CompatibilityComparer.areCompatible(a, b))
+    }
+
+    func testEvaluateMarksAudioCountMismatchAsMismatchNotUnsupportedTopology() {
+        let reference = sampleSignature()
+        var candidate = dualAudioSignature()
+        candidate.videoCodec = reference.videoCodec
+        candidate.videoDisplayWidth = reference.videoDisplayWidth
+        candidate.videoDisplayHeight = reference.videoDisplayHeight
+        candidate.videoPreferredTransform = reference.videoPreferredTransform
+        candidate.videoFrameDuration = reference.videoFrameDuration
+        candidate.videoTimescale = reference.videoTimescale
+
+        let loaded = [
+            AssetInspectionResult(
+                url: URL(fileURLWithPath: "/ref.mov"),
+                index: 0,
+                duration: CMTime(value: 1, timescale: 1),
+                signature: reference,
+                status: .compatible
+            ),
+            AssetInspectionResult(
+                url: URL(fileURLWithPath: "/cand.mov"),
+                index: 1,
+                duration: CMTime(value: 1, timescale: 1),
+                signature: candidate,
+                status: .compatible
+            ),
+        ]
+        let report = AssetInspector.evaluate(loadedInspections: loaded)
+        XCTAssertFalse(report.canExport)
+        XCTAssertEqual(report.results[0].status, .compatible)
+        guard case .mismatch(let mismatches) = report.results[1].status else {
+            return XCTFail("Expected mismatch for audio count, got \(report.results[1].status)")
+        }
+        XCTAssertTrue(mismatches.contains(.audioTrackCount(1, 2)))
+    }
+
+    func testEvaluateMarksMatchingMultiAudioCompatible() {
+        let reference = dualAudioSignature()
+        let candidate = dualAudioSignature()
+        let loaded = [
+            AssetInspectionResult(
+                url: URL(fileURLWithPath: "/ref.mov"),
+                index: 0,
+                duration: CMTime(value: 1, timescale: 1),
+                signature: reference,
+                status: .compatible
+            ),
+            AssetInspectionResult(
+                url: URL(fileURLWithPath: "/cand.mov"),
+                index: 1,
+                duration: CMTime(value: 1, timescale: 1),
+                signature: candidate,
+                status: .compatible
+            ),
+        ]
+        let report = AssetInspector.evaluate(loadedInspections: loaded)
+        XCTAssertTrue(report.canExport)
+        XCTAssertEqual(report.results[0].status, .compatible)
+        XCTAssertEqual(report.results[1].status, .compatible)
     }
 
     func testDisplaySizeMismatchIsRejected() {
@@ -144,28 +195,28 @@ final class CompatibilitySignatureTests: XCTestCase {
     func testAudioCodecMismatchIsRejected() {
         var a = sampleSignature()
         var b = sampleSignature()
-        a.audioCodec = "aac"
-        b.audioCodec = "lpcm"
+        a.audioTracks[0].codec = "aac"
+        b.audioTracks[0].codec = "lpcm"
 
         let mismatches = CompatibilityComparer.mismatches(between: a, and: b)
-        XCTAssertTrue(mismatches.contains(.audioCodec("aac", "lpcm")))
+        XCTAssertTrue(mismatches.contains(.audioCodec(track: 0, "aac", "lpcm")))
     }
 
     func testAudioSampleRateMismatchIsRejected() {
         var a = sampleSignature()
         var b = sampleSignature()
-        a.audioSampleRate = 48_000
-        b.audioSampleRate = 44_100
+        a.audioTracks[0].sampleRate = 48_000
+        b.audioTracks[0].sampleRate = 44_100
 
         let mismatches = CompatibilityComparer.mismatches(between: a, and: b)
-        XCTAssertTrue(mismatches.contains(.audioSampleRate(48_000, 44_100)))
+        XCTAssertTrue(mismatches.contains(.audioSampleRate(track: 0, 48_000, 44_100)))
     }
 
     func testAudioSampleRateEpsilonTreatsNearEqualAsMatch() {
         var a = sampleSignature()
         var b = sampleSignature()
-        a.audioSampleRate = 48_000
-        b.audioSampleRate = 48_000 + 1e-7
+        a.audioTracks[0].sampleRate = 48_000
+        b.audioTracks[0].sampleRate = 48_000 + 1e-7
 
         XCTAssertTrue(CompatibilityComparer.areCompatible(a, b))
     }
@@ -173,21 +224,21 @@ final class CompatibilitySignatureTests: XCTestCase {
     func testAudioChannelCountMismatchIsRejected() {
         var a = sampleSignature()
         var b = sampleSignature()
-        a.audioChannelCount = 2
-        b.audioChannelCount = 1
+        a.audioTracks[0].channelCount = 2
+        b.audioTracks[0].channelCount = 1
 
         let mismatches = CompatibilityComparer.mismatches(between: a, and: b)
-        XCTAssertTrue(mismatches.contains(.audioChannelCount(2, 1)))
+        XCTAssertTrue(mismatches.contains(.audioChannelCount(track: 0, 2, 1)))
     }
 
     func testAudioFormatFlagsMismatchIsRejected() {
         var a = sampleSignature()
         var b = sampleSignature()
-        a.audioFormatFlags = 0
-        b.audioFormatFlags = 12
+        a.audioTracks[0].formatFlags = 0
+        b.audioTracks[0].formatFlags = 12
 
         let mismatches = CompatibilityComparer.mismatches(between: a, and: b)
-        XCTAssertTrue(mismatches.contains(.audioFormatFlags(0, 12)))
+        XCTAssertTrue(mismatches.contains(.audioFormatFlags(track: 0, 0, 12)))
     }
 
     func testUnsupportedTracksOnCandidateAreRejected() {
@@ -229,36 +280,6 @@ final class CompatibilitySignatureTests: XCTestCase {
         )
     }
 
-    func testEvaluateMarksMultiAudioCandidateUnsupported() {
-        let reference = sampleSignature()
-        var candidate = sampleSignature()
-        candidate.audioTrackCount = 2
-
-        let loaded = [
-            AssetInspectionResult(
-                url: URL(fileURLWithPath: "/ref.mov"),
-                index: 0,
-                duration: CMTime(value: 1, timescale: 1),
-                signature: reference,
-                status: .compatible
-            ),
-            AssetInspectionResult(
-                url: URL(fileURLWithPath: "/cand.mov"),
-                index: 1,
-                duration: CMTime(value: 1, timescale: 1),
-                signature: candidate,
-                status: .compatible
-            ),
-        ]
-        let report = AssetInspector.evaluate(loadedInspections: loaded)
-        XCTAssertFalse(report.canExport)
-        XCTAssertEqual(report.results[0].status, .compatible)
-        guard case .unsupported(let detail) = report.results[1].status else {
-            return XCTFail("Expected unsupported multi-audio candidate, got \(report.results[1].status)")
-        }
-        XCTAssertTrue(detail.lowercased().contains("audio"))
-    }
-
     func testRationalReduction() {
         let rational = CompatibilitySignature.Rational(value: 2002, timescale: 60_000)
         XCTAssertEqual(rational.value, 1001)
@@ -288,8 +309,8 @@ final class CompatibilitySignatureTests: XCTestCase {
             "Video display size mismatch (1920x1080 vs 1280x720)"
         )
         XCTAssertEqual(
-            CompatibilityMismatch.audioChannelCount(2, 1).description,
-            "Audio channel count mismatch (2 vs 1)"
+            CompatibilityMismatch.audioChannelCount(track: 0, 2, 1).description,
+            "Audio track[0] channel count mismatch (2 vs 1)"
         )
         XCTAssertEqual(
             CompatibilityMismatch.audioTrackCount(1, 0).description,
@@ -304,18 +325,47 @@ final class CompatibilitySignatureTests: XCTestCase {
     private func sampleSignature() -> CompatibilitySignature {
         CompatibilitySignature(
             videoTrackCount: 1,
-            audioTrackCount: 1,
+            audioTracks: [
+                .init(codec: "aac", sampleRate: 48_000, channelCount: 2, formatFlags: 0),
+            ],
             hasUnsupportedTracks: false,
             videoCodec: "hvc1",
             videoDisplayWidth: 1920,
             videoDisplayHeight: 1080,
             videoPreferredTransform: .identity,
             videoFrameDuration: CompatibilitySignature.Rational(value: 1001, timescale: 30_000),
-            videoTimescale: 30_000,
-            audioCodec: "aac",
-            audioSampleRate: 48_000,
-            audioChannelCount: 2,
-            audioFormatFlags: 0
+            videoTimescale: 30_000
+        )
+    }
+
+    private func dualAudioSignature() -> CompatibilitySignature {
+        CompatibilitySignature(
+            videoTrackCount: 1,
+            audioTracks: [
+                .init(codec: "aac", sampleRate: 48_000, channelCount: 2, formatFlags: 0),
+                .init(codec: "apac", sampleRate: 48_000, channelCount: 2, formatFlags: 0),
+            ],
+            hasUnsupportedTracks: false,
+            videoCodec: "hvc1",
+            videoDisplayWidth: 1920,
+            videoDisplayHeight: 1080,
+            videoPreferredTransform: .identity,
+            videoFrameDuration: CompatibilitySignature.Rational(value: 1001, timescale: 30_000),
+            videoTimescale: 30_000
+        )
+    }
+
+    private func zeroAudioSignature() -> CompatibilitySignature {
+        CompatibilitySignature(
+            videoTrackCount: 1,
+            audioTracks: [],
+            hasUnsupportedTracks: false,
+            videoCodec: "hvc1",
+            videoDisplayWidth: 1920,
+            videoDisplayHeight: 1080,
+            videoPreferredTransform: .identity,
+            videoFrameDuration: CompatibilitySignature.Rational(value: 1001, timescale: 30_000),
+            videoTimescale: 30_000
         )
     }
 }
