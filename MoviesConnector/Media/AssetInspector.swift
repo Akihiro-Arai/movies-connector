@@ -210,40 +210,41 @@ enum AssetInspector: Sendable {
         let naturalTimeScale = try await videoTrack.load(.naturalTimeScale)
         let videoTimescale: Int32? = naturalTimeScale == 0 ? nil : naturalTimeScale
 
-        var audioCodec: String?
-        var audioSampleRate: Double?
-        var audioChannelCount: Int?
-        var audioFormatFlags: UInt32?
-
-        // Signature fields describe the first audio track (exporterExporter inserts at most one).
-        // `audioTrackCount` still reports every audio track so multi-audio is rejected.
-        if let audioTrack = audioTracks.first {
+        var audioTrackSignatures: [CompatibilitySignature.AudioTrackSignature] = []
+        audioTrackSignatures.reserveCapacity(audioTracks.count)
+        for audioTrack in audioTracks {
             let audioFormats = try await audioTrack.load(.formatDescriptions)
-            audioCodec = fourCC(from: audioFormats.first)
+            let codec = fourCC(from: audioFormats.first)
+            var sampleRate: Double?
+            var channelCount: Int?
+            var formatFlags: UInt32?
             if let description = audioFormats.first {
                 let asbd = CMAudioFormatDescriptionGetStreamBasicDescription(description)?.pointee
-                audioSampleRate = asbd?.mSampleRate
-                audioChannelCount = asbd.map { Int($0.mChannelsPerFrame) }
-                audioFormatFlags = asbd?.mFormatFlags
+                sampleRate = asbd?.mSampleRate
+                channelCount = asbd.map { Int($0.mChannelsPerFrame) }
+                formatFlags = asbd?.mFormatFlags
             }
+            audioTrackSignatures.append(
+                CompatibilitySignature.AudioTrackSignature(
+                    codec: codec,
+                    sampleRate: sampleRate,
+                    channelCount: channelCount,
+                    formatFlags: formatFlags
+                )
+            )
         }
 
-        // Report the true audio track count so multi-audio is rejected (v1 cannot
-        // passthrough every audio track). Only metadata/timecode side-cars are ignorable.
+        // Only metadata/timecode side-cars are ignorable; all audio tracks are kept for passthrough.
         return CompatibilitySignature(
             videoTrackCount: videoTracks.count,
-            audioTrackCount: audioTracks.count,
+            audioTracks: audioTrackSignatures,
             hasUnsupportedTracks: hasUnsupportedTracks,
             videoCodec: videoCodec,
             videoDisplayWidth: displayWidth,
             videoDisplayHeight: displayHeight,
             videoPreferredTransform: CompatibilitySignature.TransformComponents(preferredTransform),
             videoFrameDuration: frameDuration,
-            videoTimescale: videoTimescale,
-            audioCodec: audioCodec,
-            audioSampleRate: audioSampleRate,
-            audioChannelCount: audioChannelCount,
-            audioFormatFlags: audioFormatFlags
+            videoTimescale: videoTimescale
         )
     }
 
@@ -373,8 +374,8 @@ enum AssetInspector: Sendable {
                 if case .unsupportedTopology = $0 { return true }
                 return false
             }) {
-                // Topology failures (multi-audio, unsupported tracks, bad video count) win over
-                // field mismatches so UI can treat the row as unsupported rather than merely mismatched.
+                // Topology failures (unsupported tracks, bad video count) win over field mismatches
+                // so UI can treat the row as unsupported rather than merely mismatched.
                 results[index].status = .unsupported(
                     rowMismatches.map(\.description).joined(separator: "; ")
                 )
@@ -400,11 +401,6 @@ enum AssetInspector: Sendable {
         if signature.videoTrackCount != 1 {
             reasons.append(
                 L10n.string("compat.asset_video_track_count \(Int64(signature.videoTrackCount))")
-            )
-        }
-        if signature.audioTrackCount > 1 {
-            reasons.append(
-                L10n.string("compat.asset_audio_track_count \(Int64(signature.audioTrackCount))")
             )
         }
         if reasons.isEmpty {
@@ -438,22 +434,6 @@ enum AssetInspector: Sendable {
                 reasons.append(
                     L10n.string(
                         "compat.candidate_video_track_count \(Int64(signature.videoTrackCount))"
-                    )
-                )
-            }
-        }
-        if signature.audioTrackCount > 1 {
-            switch role {
-            case .reference:
-                reasons.append(
-                    L10n.string(
-                        "compat.reference_audio_track_count \(Int64(signature.audioTrackCount))"
-                    )
-                )
-            case .candidate:
-                reasons.append(
-                    L10n.string(
-                        "compat.candidate_audio_track_count \(Int64(signature.audioTrackCount))"
                     )
                 )
             }

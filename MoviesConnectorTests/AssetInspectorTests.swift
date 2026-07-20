@@ -254,4 +254,52 @@ final class AssetInspectorTests: XCTestCase {
         XCTAssertFalse(AssetInspector.isPassthroughIgnorableTrack(.audio))
         XCTAssertFalse(AssetInspector.isPassthroughIgnorableTrack(.muxed))
     }
+
+    func testMakeSignatureLoadsAllAudioTracks() async throws {
+        let url = try await TestMovieFixtures.makeTemporaryMultiAudioMovie(audioTrackCount: 2)
+        let signature = try await AssetInspector.makeSignature(for: url)
+
+        XCTAssertEqual(signature.videoTrackCount, 1)
+        XCTAssertEqual(signature.audioTrackCount, 2)
+        XCTAssertEqual(signature.audioTracks.count, 2)
+        XCTAssertEqual(signature.audioTracks[0].codec, "lpcm")
+        XCTAssertEqual(signature.audioTracks[1].codec, "lpcm")
+        XCTAssertEqual(signature.audioTracks[0].sampleRate, 48_000)
+        XCTAssertEqual(signature.audioTracks[0].channelCount, 2)
+
+        let inspection = try await AssetInspector.inspect(url)
+        XCTAssertEqual(inspection.status, .compatible)
+    }
+
+    func testZeroAudioFixtureRemainsCompatible() async throws {
+        let url = try await TestMovieFixtures.compatA()
+        let result = try await AssetInspector.inspect(url)
+        XCTAssertEqual(result.signature?.audioTrackCount, 0)
+        XCTAssertEqual(result.status, .compatible)
+    }
+
+    func testMatchingDualAudioPairPassesPreflight() async throws {
+        let a = try await TestMovieFixtures.makeTemporaryMultiAudioMovie(
+            audioTrackCount: 2,
+            color: .systemBlue
+        )
+        let b = try await TestMovieFixtures.makeTemporaryMultiAudioMovie(
+            audioTrackCount: 2,
+            color: .systemGreen
+        )
+        let report = try await AssetInspector.preflight(urls: [a, b])
+        XCTAssertTrue(report.canExport)
+        XCTAssertTrue(report.results.allSatisfy { $0.status == .compatible })
+    }
+
+    func testDualVersusSingleAudioFailsPreflightWithCountReason() async throws {
+        let dual = try await TestMovieFixtures.makeTemporaryMultiAudioMovie(audioTrackCount: 2)
+        let single = try await TestMovieFixtures.makeTemporaryMultiAudioMovie(audioTrackCount: 1)
+        let report = try await AssetInspector.preflight(urls: [dual, single])
+        XCTAssertFalse(report.canExport)
+        guard case .mismatch(let mismatches) = report.results[1].status else {
+            return XCTFail("Expected mismatch, got \(report.results[1].status)")
+        }
+        XCTAssertTrue(mismatches.contains(.audioTrackCount(2, 1)))
+    }
 }

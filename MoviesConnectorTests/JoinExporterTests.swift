@@ -79,6 +79,66 @@ final class JoinExporterTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: b.path))
     }
 
+    func testMultiAudioCompositionInsertsEveryTrackByIndex() async throws {
+        let a = try await TestMovieFixtures.makeTemporaryMultiAudioMovie(
+            audioTrackCount: 2,
+            color: .systemBlue
+        )
+        let b = try await TestMovieFixtures.makeTemporaryMultiAudioMovie(
+            audioTrackCount: 2,
+            color: .systemGreen
+        )
+        let output = outputDirectory.appendingPathComponent("multi-audio-join.mov")
+
+        final class Box: @unchecked Sendable {
+            var composition: AVMutableComposition?
+        }
+        let box = Box()
+        JoinExporter.didBuildCompositionForTesting = { composition in
+            box.composition = composition
+        }
+        JoinExporter.exportBodyForTesting = { tempURL in
+            try FileManager.default.copyItem(at: a, to: tempURL)
+        }
+
+        _ = try await JoinExporter.join(inputURLs: [a, b], outputURL: output)
+
+        let composition = try XCTUnwrap(box.composition)
+        let audioTracks = composition.tracks(withMediaType: .audio)
+        XCTAssertEqual(audioTracks.count, 2, "Composition must create one audio track per index")
+        for (index, track) in audioTracks.enumerated() {
+            XCTAssertEqual(
+                track.segments.count,
+                2,
+                "Audio composition track[\(index)] must receive one segment per input"
+            )
+            XCTAssertFalse(
+                track.segments.contains(where: \.isEmpty),
+                "Audio composition track[\(index)] must not contain empty placeholder segments"
+            )
+        }
+        XCTAssertEqual(composition.tracks(withMediaType: .video).count, 1)
+    }
+
+    func testMultiAudioTopologyMismatchAtExportFailsClearly() async throws {
+        let dual = try await TestMovieFixtures.makeTemporaryMultiAudioMovie(audioTrackCount: 2)
+        let single = try await TestMovieFixtures.makeTemporaryMultiAudioMovie(audioTrackCount: 1)
+        let output = outputDirectory.appendingPathComponent("multi-audio-mismatch.mov")
+
+        do {
+            _ = try await JoinExporter.join(inputURLs: [dual, single], outputURL: output)
+            XCTFail("Expected incompatible refusal for audio count mismatch")
+        } catch let JoinExporterError.incompatible(reasons) {
+            XCTAssertTrue(
+                reasons.contains(where: {
+                    $0.localizedCaseInsensitiveContains("audio track count")
+                }),
+                reasons.joined(separator: "; ")
+            )
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: output.path))
+    }
+
     func testOutputCollidingWithInputRejectedBeforeWrite() async throws {
         let a = try await TestMovieFixtures.url(named: "compat_a.mov")
         let b = try await TestMovieFixtures.url(named: "compat_b.mov")

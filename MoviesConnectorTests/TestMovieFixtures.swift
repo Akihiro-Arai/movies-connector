@@ -59,6 +59,31 @@ enum TestMovieFixtures {
         return url
     }
 
+    /// One-off H.264 clip with `audioTrackCount` silent stereo LPCM tracks (CI multi-audio tests).
+    static func makeTemporaryMultiAudioMovie(
+        frameCount: Int = 15,
+        audioTrackCount: Int,
+        color: NSColor = .systemBlue
+    ) async throws -> URL {
+        precondition(audioTrackCount >= 0)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("movies-connector-test-multiaudio", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let url = directory.appendingPathComponent("multi_audio.mov")
+        let spec = Spec(
+            name: "multi_audio",
+            width: 320,
+            height: 240,
+            frameCount: frameCount,
+            fps: 30,
+            color: color,
+            bitRate: 500_000
+        )
+        try await writeMovie(spec: spec, audioTrackCount: audioTrackCount, to: url)
+        return url
+    }
+
     private actor Gate {
         private var cachedDirectory: URL?
         private var inFlight: Task<URL, Error>?
@@ -119,6 +144,10 @@ enum TestMovieFixtures {
     }
 
     private static func writeMovie(spec: Spec, to url: URL) async throws {
+        try await writeMovie(spec: spec, audioTrackCount: 0, to: url)
+    }
+
+    private static func writeMovie(spec: Spec, audioTrackCount: Int, to url: URL) async throws {
         if FileManager.default.fileExists(atPath: url.path) {
             try FileManager.default.removeItem(at: url)
         }
@@ -132,11 +161,11 @@ enum TestMovieFixtures {
                 AVVideoAverageBitRateKey: spec.bitRate,
             ],
         ]
-        let input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
-        input.expectsMediaDataInRealTime = false
+        let videoInput = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
+        videoInput.expectsMediaDataInRealTime = false
 
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(
-            assetWriterInput: input,
+            assetWriterInput: videoInput,
             sourcePixelBufferAttributes: [
                 kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA),
                 kCVPixelBufferWidthKey as String: spec.width,
@@ -144,10 +173,32 @@ enum TestMovieFixtures {
             ]
         )
 
-        guard writer.canAdd(input) else {
+        guard writer.canAdd(videoInput) else {
             throw FixtureError.generationFailed("Cannot add video input")
         }
-        writer.add(input)
+        writer.add(videoInput)
+
+        let sampleRate = 48_000
+        let channelCount = 2
+        let audioSettings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVSampleRateKey: sampleRate,
+            AVNumberOfChannelsKey: channelCount,
+            AVLinearPCMBitDepthKey: 16,
+            AVLinearPCMIsFloatKey: false,
+            AVLinearPCMIsBigEndianKey: false,
+            AVLinearPCMIsNonInterleaved: false,
+        ]
+        var audioInputs: [AVAssetWriterInput] = []
+        for index in 0..<audioTrackCount {
+            let audioInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
+            audioInput.expectsMediaDataInRealTime = false
+            guard writer.canAdd(audioInput) else {
+                throw FixtureError.generationFailed("Cannot add audio input \(index)")
+            }
+            writer.add(audioInput)
+            audioInputs.append(audioInput)
+        }
 
         guard writer.startWriting() else {
             throw writer.error ?? FixtureError.generationFailed("startWriting failed")
@@ -155,20 +206,43 @@ enum TestMovieFixtures {
         writer.startSession(atSourceTime: .zero)
 
         let frameDuration = CMTime(value: 1, timescale: CMTimeScale(spec.fps))
+        let duration = CMTimeMultiply(frameDuration, multiplier: Int32(spec.frameCount))
         var frameIndex = 0
+        var audioFinished = Array(repeating: false, count: audioTrackCount)
+        let writerQueue = DispatchQueue(label: "test.fixture.writer")
 
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-            input.requestMediaDataWhenReady(on: DispatchQueue(label: "test.fixture.writer")) {
-                while input.isReadyForMoreMediaData {
-                    if frameIndex >= spec.frameCount {
-                        input.markAsFinished()
-                        writer.finishWriting {
-                            if let error = writer.error {
-                                continuation.resume(throwing: error)
-                            } else {
-                                continuation.resume()
-                            }
+            final class Once: @unchecked Sendable {
+                var resumed = false
+                let lock = NSLock()
+                func resume(_ body: () -> Void) {
+                    lock.lock()
+                    defer { lock.unlock() }
+                    guard !resumed else { return }
+                    resumed = true
+                    body()
+                }
+            }
+            let once = Once()
+
+            func finishIfNeeded() {
+                guard frameIndex >= spec.frameCount, audioFinished.allSatisfy({ $0 }) else { return }
+                writer.finishWriting {
+                    once.resume {
+                        if let error = writer.error {
+                            continuation.resume(throwing: error)
+                        } else {
+                            continuation.resume()
                         }
+                    }
+                }
+            }
+
+            videoInput.requestMediaDataWhenReady(on: writerQueue) {
+                while videoInput.isReadyForMoreMediaData {
+                    if frameIndex >= spec.frameCount {
+                        videoInput.markAsFinished()
+                        finishIfNeeded()
                         return
                     }
 
@@ -185,14 +259,140 @@ enum TestMovieFixtures {
                         }
                         frameIndex += 1
                     } catch {
-                        input.markAsFinished()
+                        videoInput.markAsFinished()
+                        for audioInput in audioInputs {
+                            audioInput.markAsFinished()
+                        }
                         writer.cancelWriting()
-                        continuation.resume(throwing: error)
+                        once.resume { continuation.resume(throwing: error) }
                         return
                     }
                 }
             }
+
+            for (index, audioInput) in audioInputs.enumerated() {
+                audioInput.requestMediaDataWhenReady(on: writerQueue) {
+                    while audioInput.isReadyForMoreMediaData {
+                        if audioFinished[index] { return }
+                        do {
+                            let buffer = try makeSilentAudioBuffer(
+                                sampleRate: sampleRate,
+                                channelCount: channelCount,
+                                duration: duration
+                            )
+                            if !audioInput.append(buffer) {
+                                throw writer.error
+                                    ?? FixtureError.generationFailed("audio append failed")
+                            }
+                            audioInput.markAsFinished()
+                            audioFinished[index] = true
+                            finishIfNeeded()
+                            return
+                        } catch {
+                            audioInput.markAsFinished()
+                            videoInput.markAsFinished()
+                            for other in audioInputs {
+                                other.markAsFinished()
+                            }
+                            writer.cancelWriting()
+                            once.resume { continuation.resume(throwing: error) }
+                            return
+                        }
+                    }
+                }
+            }
+
+            if audioTrackCount == 0 {
+                // Video-only path finishes from the video callback.
+            }
         }
+    }
+
+    private static func makeSilentAudioBuffer(
+        sampleRate: Int,
+        channelCount: Int,
+        duration: CMTime
+    ) throws -> CMSampleBuffer {
+        let frameCount = max(1, Int((duration.seconds * Double(sampleRate)).rounded(.up)))
+        let bytesPerFrame = channelCount * MemoryLayout<Int16>.size
+        let dataSize = frameCount * bytesPerFrame
+
+        var asbd = AudioStreamBasicDescription(
+            mSampleRate: Float64(sampleRate),
+            mFormatID: kAudioFormatLinearPCM,
+            mFormatFlags: kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked,
+            mBytesPerPacket: UInt32(bytesPerFrame),
+            mFramesPerPacket: 1,
+            mBytesPerFrame: UInt32(bytesPerFrame),
+            mChannelsPerFrame: UInt32(channelCount),
+            mBitsPerChannel: 16,
+            mReserved: 0
+        )
+
+        var formatDescription: CMAudioFormatDescription?
+        let formatStatus = CMAudioFormatDescriptionCreate(
+            allocator: kCFAllocatorDefault,
+            asbd: &asbd,
+            layoutSize: 0,
+            layout: nil,
+            magicCookieSize: 0,
+            magicCookie: nil,
+            extensions: nil,
+            formatDescriptionOut: &formatDescription
+        )
+        guard formatStatus == noErr, let formatDescription else {
+            throw FixtureError.generationFailed("CMAudioFormatDescriptionCreate failed")
+        }
+
+        var blockBuffer: CMBlockBuffer?
+        let blockStatus = CMBlockBufferCreateWithMemoryBlock(
+            allocator: kCFAllocatorDefault,
+            memoryBlock: nil,
+            blockLength: dataSize,
+            blockAllocator: nil,
+            customBlockSource: nil,
+            offsetToData: 0,
+            dataLength: dataSize,
+            flags: 0,
+            blockBufferOut: &blockBuffer
+        )
+        guard blockStatus == noErr, let blockBuffer else {
+            throw FixtureError.generationFailed("CMBlockBufferCreate failed")
+        }
+        let fillStatus = CMBlockBufferFillDataBytes(
+            with: 0,
+            blockBuffer: blockBuffer,
+            offsetIntoDestination: 0,
+            dataLength: dataSize
+        )
+        guard fillStatus == noErr else {
+            throw FixtureError.generationFailed("CMBlockBufferFillDataBytes failed")
+        }
+
+        var sampleBuffer: CMSampleBuffer?
+        var timing = CMSampleTimingInfo(
+            duration: CMTime(value: 1, timescale: CMTimeScale(sampleRate)),
+            presentationTimeStamp: .zero,
+            decodeTimeStamp: .invalid
+        )
+        let sampleStatus = CMSampleBufferCreate(
+            allocator: kCFAllocatorDefault,
+            dataBuffer: blockBuffer,
+            dataReady: true,
+            makeDataReadyCallback: nil,
+            refcon: nil,
+            formatDescription: formatDescription,
+            sampleCount: frameCount,
+            sampleTimingEntryCount: 1,
+            sampleTimingArray: &timing,
+            sampleSizeEntryCount: 0,
+            sampleSizeArray: nil,
+            sampleBufferOut: &sampleBuffer
+        )
+        guard sampleStatus == noErr, let sampleBuffer else {
+            throw FixtureError.generationFailed("CMSampleBufferCreate failed")
+        }
+        return sampleBuffer
     }
 
     private static func makePixelBuffer(

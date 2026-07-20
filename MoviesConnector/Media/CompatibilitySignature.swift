@@ -13,12 +13,14 @@ struct CompatibilitySignature: Equatable, Hashable, Sendable {
 
     /// Number of video tracks that would be inserted into the composition (v1 expects exactly 1).
     var videoTrackCount: Int
-    /// Audio tracks used for passthrough (0 or 1). Extra audio tracks are ignored at export
-    /// and normalized away when the signature is built.
-    var audioTrackCount: Int
+    /// Ordered audio-track fingerprints for passthrough (`N >= 0`). Count must match across inputs.
+    var audioTracks: [AudioTrackSignature]
     /// True when a non-ignorable non-AV track exists. Metadata / timecode / text side-cars
     /// from Photos / iPhone are ignored and do not set this flag.
     var hasUnsupportedTracks: Bool
+
+    /// Derived from `audioTracks.count` (`N >= 0`).
+    var audioTrackCount: Int { audioTracks.count }
 
     // MARK: - Video
 
@@ -34,14 +36,17 @@ struct CompatibilitySignature: Equatable, Hashable, Sendable {
     /// Media timescale of the primary video track.
     var videoTimescale: Int32?
 
-    // MARK: - Audio
+    // MARK: - Nested types
 
-    /// Normalized audio codec FourCC (e.g. "aac ", "lpcm"). Lowercased / space-padded FourCC as string.
-    var audioCodec: String?
-    var audioSampleRate: Double?
-    var audioChannelCount: Int?
-    /// Audio format flags when present (e.g. LPCM layout); nil when not applicable.
-    var audioFormatFlags: UInt32?
+    /// Encoded parameters for one audio track (compared by index across inputs).
+    struct AudioTrackSignature: Equatable, Hashable, Sendable {
+        /// Normalized audio codec FourCC (e.g. "aac", "lpcm"). Lowercased / trimmed FourCC.
+        var codec: String?
+        var sampleRate: Double?
+        var channelCount: Int?
+        /// Audio format flags when present (e.g. LPCM layout); nil when not applicable.
+        var formatFlags: UInt32?
+    }
 
     struct TransformComponents: Equatable, Hashable, Sendable {
         var a: Double
@@ -122,10 +127,10 @@ enum CompatibilityMismatch: Equatable, Sendable, CustomStringConvertible {
     case videoPreferredTransform
     case videoFrameDuration(String?, String?)
     case videoTimescale(Int32?, Int32?)
-    case audioCodec(String?, String?)
-    case audioSampleRate(Double?, Double?)
-    case audioChannelCount(Int?, Int?)
-    case audioFormatFlags(UInt32?, UInt32?)
+    case audioCodec(track: Int, String?, String?)
+    case audioSampleRate(track: Int, Double?, Double?)
+    case audioChannelCount(track: Int, Int?, Int?)
+    case audioFormatFlags(track: Int, UInt32?, UInt32?)
 
     /// Stable English text for logs, exporter errors, and unit tests.
     var description: String {
@@ -170,24 +175,24 @@ enum CompatibilityMismatch: Equatable, Sendable, CustomStringConvertible {
                 "compat.video_timescale \(Self.display(a)) \(Self.display(b))",
                 locale: locale
             )
-        case .audioCodec(let a, let b):
+        case .audioCodec(let track, let a, let b):
             return L10n.string(
-                "compat.audio_codec \(Self.display(a)) \(Self.display(b))",
+                "compat.audio_codec \(Int64(track)) \(Self.display(a)) \(Self.display(b))",
                 locale: locale
             )
-        case .audioSampleRate(let a, let b):
+        case .audioSampleRate(let track, let a, let b):
             return L10n.string(
-                "compat.audio_sample_rate \(Self.display(a)) \(Self.display(b))",
+                "compat.audio_sample_rate \(Int64(track)) \(Self.display(a)) \(Self.display(b))",
                 locale: locale
             )
-        case .audioChannelCount(let a, let b):
+        case .audioChannelCount(let track, let a, let b):
             return L10n.string(
-                "compat.audio_channel_count \(Self.display(a)) \(Self.display(b))",
+                "compat.audio_channel_count \(Int64(track)) \(Self.display(a)) \(Self.display(b))",
                 locale: locale
             )
-        case .audioFormatFlags(let a, let b):
+        case .audioFormatFlags(let track, let a, let b):
             return L10n.string(
-                "compat.audio_format_flags \(Self.display(a)) \(Self.display(b))",
+                "compat.audio_format_flags \(Int64(track)) \(Self.display(a)) \(Self.display(b))",
                 locale: locale
             )
         }
@@ -218,18 +223,6 @@ enum CompatibilityMismatch: Equatable, Sendable, CustomStringConvertible {
             detail: detail
         ) {
             return L10n.string("compat.candidate_video_track_count \(Int64(count))", locale: locale)
-        }
-        if let count = parseFoundCount(
-            prefix: "reference must have at most 1 audio track (found ",
-            detail: detail
-        ) {
-            return L10n.string("compat.reference_audio_track_count \(Int64(count))", locale: locale)
-        }
-        if let count = parseFoundCount(
-            prefix: "candidate must have at most 1 audio track (found ",
-            detail: detail
-        ) {
-            return L10n.string("compat.candidate_audio_track_count \(Int64(count))", locale: locale)
         }
         return L10n.string("compat.topology \(detail)", locale: locale)
     }
@@ -265,17 +258,6 @@ enum CompatibilityComparer {
                 results.append(.unsupportedTopology("candidate must have exactly 1 video track (found \(rhs.videoTrackCount))"))
             }
         }
-        // v1 inserts at most one audio track; multi-audio would be silently dropped by JoinExporter.
-        if lhs.audioTrackCount > 1 {
-            results.append(
-                .unsupportedTopology("reference must have at most 1 audio track (found \(lhs.audioTrackCount))")
-            )
-        }
-        if rhs.audioTrackCount > 1 {
-            results.append(
-                .unsupportedTopology("candidate must have at most 1 audio track (found \(rhs.audioTrackCount))")
-            )
-        }
         if lhs.audioTrackCount != rhs.audioTrackCount {
             results.append(.audioTrackCount(lhs.audioTrackCount, rhs.audioTrackCount))
         }
@@ -304,17 +286,25 @@ enum CompatibilityComparer {
         if lhs.videoTimescale != rhs.videoTimescale {
             results.append(.videoTimescale(lhs.videoTimescale, rhs.videoTimescale))
         }
-        if lhs.audioCodec != rhs.audioCodec {
-            results.append(.audioCodec(lhs.audioCodec, rhs.audioCodec))
-        }
-        if !almostEqual(lhs.audioSampleRate, rhs.audioSampleRate) {
-            results.append(.audioSampleRate(lhs.audioSampleRate, rhs.audioSampleRate))
-        }
-        if lhs.audioChannelCount != rhs.audioChannelCount {
-            results.append(.audioChannelCount(lhs.audioChannelCount, rhs.audioChannelCount))
-        }
-        if lhs.audioFormatFlags != rhs.audioFormatFlags {
-            results.append(.audioFormatFlags(lhs.audioFormatFlags, rhs.audioFormatFlags))
+
+        // Per-track audio compare only when counts match (count mismatch already recorded).
+        if lhs.audioTrackCount == rhs.audioTrackCount {
+            for index in lhs.audioTracks.indices {
+                let left = lhs.audioTracks[index]
+                let right = rhs.audioTracks[index]
+                if left.codec != right.codec {
+                    results.append(.audioCodec(track: index, left.codec, right.codec))
+                }
+                if !almostEqual(left.sampleRate, right.sampleRate) {
+                    results.append(.audioSampleRate(track: index, left.sampleRate, right.sampleRate))
+                }
+                if left.channelCount != right.channelCount {
+                    results.append(.audioChannelCount(track: index, left.channelCount, right.channelCount))
+                }
+                if left.formatFlags != right.formatFlags {
+                    results.append(.audioFormatFlags(track: index, left.formatFlags, right.formatFlags))
+                }
+            }
         }
 
         return results
